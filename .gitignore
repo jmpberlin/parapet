@@ -1,0 +1,40 @@
+# Go
+/vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.sum
+
+# Go workspace
+go.work.sum
+
+# Build output
+/dist/
+/bin/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Docker
+.dockerignore
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs
+*.log
