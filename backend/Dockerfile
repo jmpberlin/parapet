@@ -1,4 +1,19 @@
-# Dockerfile for nightwatch
-# TODO: add build instructions
+FROM golang:1.26-alpine AS builder
 
-FROM scratch
+WORKDIR /app 
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY . .
+
+RUN go build -o backend ./cmd/api
+
+FROM alpine
+
+COPY --from=builder /app/backend /backend
+
+EXPOSE 8080
+
+CMD ["/backend"]
