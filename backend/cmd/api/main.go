@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	_ "github.com/lib/pq"
 )
 
@@ -32,18 +34,30 @@ func initDB() error {
 	dbname := getEnv("POSTGRES_DB", "nightwatch")
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	log.Printf("Connection to database at %s:%s/%s...", host, port, dbname)
+
+	slog.Info("Connecting to database",
+		"host", host,
+		"port", port,
+		"dbname", dbname,
+	)
+
 	var err error
 	for i := 0; i < 10; i++ {
 		db, err = sql.Open("postgres", connStr)
 		if err == nil {
 			err = db.Ping()
 			if err == nil {
-				log.Printf("Database connection established successfully.")
+				slog.Info("Database connection established succesfully",
+					"attempt", i+1,
+				)
 				return nil
 			}
 		}
-		log.Printf("Database connection attempt %d/10 failed: %v", i+1, err)
+		slog.Warn("database connection attempt failed",
+			"attempt", i+1,
+			"max_attempts", 10,
+			"error", err,
+		)
 		time.Sleep(time.Duration(2*(i+1)) * time.Second)
 	}
 
@@ -52,7 +66,12 @@ func initDB() error {
 
 func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	log.Printf("[%s] %s %s - Remote: %s", r.Method, r.URL.Path, r.Proto, r.RemoteAddr)
+	slog.Info("Healthcheck",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"proto", r.Proto,
+		"remote_address", r.RemoteAddr,
+	)
 	fmt.Fprintf(w, `{"status": "ok"}`)
 }
 
@@ -62,8 +81,27 @@ func main() {
 	}
 	defer db.Close()
 
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+
 	port := getPort()
 	http.HandleFunc("/status", healthcheckHandler)
+	BCScraper := crawler.NewBCScraper()
+	orchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{BCScraper}, time.Hour*24)
+	articles, err := orchestrator.FetchAll()
+	if err != nil && len(articles) == 0 {
+		slog.Error("crawler orchestrator failed to fetch any articles",
+			"error", err,
+		)
+	}
+	if err != nil && len(articles) > 0 {
+		slog.Warn("at least one crawler collected errors when fetching articles",
+			"error", err,
+			"collected_articles", articles)
+	}
+	if err == nil && len(articles) == 0 {
+		slog.Warn("crawler orchestrator didn't encounter any errors, but didn't collect any articles - check if target html structure changed")
+	}
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
