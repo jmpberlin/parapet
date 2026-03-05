@@ -16,7 +16,7 @@ type Article struct {
 	PublishedAt    time.Time
 	Headline       string
 	Author         string
-	ContentHTML    []string
+	ContentHTML    string
 	ContentCleaned string
 	CrawledAt      time.Time
 }
