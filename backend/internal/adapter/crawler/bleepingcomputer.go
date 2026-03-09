@@ -53,8 +53,10 @@ func (s *BCScraper) extractArticleList(since time.Time, doc *goquery.Document) (
 		if category == "Deals" {
 			return
 		}
-		href, exists := sel.Find("h4 a").Attr("href")
+		headlineTag := sel.Find("h4 a")
+		headline := headlineTag.Text()
 
+		href, exists := headlineTag.Attr("href")
 		if !exists || !strings.HasPrefix(href, "https") {
 			return
 		}
@@ -74,6 +76,7 @@ func (s *BCScraper) extractArticleList(since time.Time, doc *goquery.Document) (
 		}
 
 		articles = append(articles, domain.Article{
+			Headline:    headline,
 			SourceURL:   href,
 			HostDomain:  domain.BleepingComputer,
 			PublishedAt: publishedAt,

@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	_ "github.com/lib/pq"
 )
@@ -76,10 +77,10 @@ func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	if err := initDB(); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	defer db.Close()
+	// if err := initDB(); err != nil {
+	// 	log.Fatalf("Failed to initialize database: %v", err)
+	// }
+	// defer db.Close()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
@@ -88,6 +89,9 @@ func main() {
 	http.HandleFunc("/status", healthcheckHandler)
 	BCScraper := crawler.NewBCScraper()
 	orchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{BCScraper}, time.Hour*24)
+	claudeApiKey := getEnv("CLAUDE_API_KEY", "")
+	vulnerabilityExtractor := claude.NewClaudeClient(claudeApiKey)
+
 	articles, err := orchestrator.FetchAll()
 	if err != nil && len(articles) == 0 {
 		slog.Error("crawler orchestrator failed to fetch any articles",
@@ -102,6 +106,14 @@ func main() {
 	if err == nil && len(articles) == 0 {
 		slog.Warn("crawler orchestrator didn't encounter any errors, but didn't collect any articles - check if target html structure changed")
 	}
+	vulnerabilities, err := vulnerabilityExtractor.ExtractVulnerabilities(articles)
+	if err != nil {
+		slog.Warn("when extracting vulnerabilities from articles, the following errors occured",
+			"errors", err,
+			"articles", articles)
+	}
+	slog.Info("extracted vulnerabilities",
+		"vulnerabilities", vulnerabilities)
 
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
