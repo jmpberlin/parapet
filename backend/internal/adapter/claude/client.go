@@ -24,6 +24,7 @@ type vulnerabilityDTO struct {
 	AffectedTechnologies []struct {
 		Name         string `json:"Name"`
 		VersionRange string `json:"VersionRange"`
+		PURL         string `json:"PURL"`
 	} `json:"AffectedTechnologies"`
 }
 
@@ -64,6 +65,7 @@ var extractionTool = anthropic.ToolParam{
 								"properties": map[string]any{
 									"Name":         map[string]any{"type": "string"},
 									"VersionRange": map[string]any{"type": "string"},
+									"PURL":         map[string]any{"type": "string"},
 								},
 							},
 						},
@@ -85,12 +87,16 @@ func (c *claudeClient) ExtractVulnerabilities(articles []domain.Article) ([]doma
 
 func processArticles(ctx context.Context, client *anthropic.Client, articles []domain.Article) ([]domain.Vulnerability, error) {
 	results := make(chan articleResult, len(articles))
+	semaphore := make(chan struct{}, 5)
+
 	var wg sync.WaitGroup
 
 	for i, a := range articles {
 		wg.Add(1)
 		go func(idx int, art domain.Article) {
 			defer wg.Done()
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
 			results <- extractFromArticle(ctx, client, idx, art)
 		}(i, a)
 	}
@@ -154,7 +160,7 @@ func parseMessageVulnerabilities(message *anthropic.Message, art domain.Article)
 func toVulnerability(dto vulnerabilityDTO, art domain.Article) domain.Vulnerability {
 	techs := make([]domain.AffectedTechnology, len(dto.AffectedTechnologies))
 	for i, t := range dto.AffectedTechnologies {
-		techs[i] = domain.AffectedTechnology{Name: t.Name, VersionRange: t.VersionRange}
+		techs[i] = domain.AffectedTechnology{Name: t.Name, VersionRange: t.VersionRange, PURL: t.PURL}
 	}
 	return domain.Vulnerability{
 		CVE:                  dto.CVE,
