@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
+	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
 	_ "github.com/lib/pq"
 )
 
@@ -77,18 +78,18 @@ func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// if err := initDB(); err != nil {
-	// 	log.Fatalf("Failed to initialize database: %v", err)
-	// }
-	// defer db.Close()
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	slog.SetDefault(logger)
+
+	if err := initDB(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer db.Close()
 
 	port := getPort()
 	http.HandleFunc("/status", healthcheckHandler)
 	BCScraper := crawler.NewBCScraper()
-	orchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{BCScraper}, time.Hour*24)
+	orchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{BCScraper}, time.Hour*120)
 	claudeApiKey := getEnv("CLAUDE_API_KEY", "")
 	vulnerabilityExtractor := claude.NewClaudeClient(claudeApiKey)
 
@@ -115,6 +116,15 @@ func main() {
 	slog.Info("extracted vulnerabilities",
 		"vulnerabilities", vulnerabilities)
 
+	githubOwner := getEnv("GITHUB_OWNER", "")
+	githubRepo := getEnv("GITHUB_REPO", "")
+	githubToken := getEnv("GITHUB_TOKEN", "")
+	githubClient := github.NewGithubClient()
+	dependencies, err := githubClient.GetDependencies(githubOwner, githubRepo, githubToken)
+	if err != nil {
+		slog.Error("github adapter client", "failed to fetch and process list of software components of repo", err)
+	}
+	slog.Info("successfully fetched and processed dependencies", "dependencies", dependencies)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

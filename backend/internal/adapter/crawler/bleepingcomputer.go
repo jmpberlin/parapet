@@ -90,7 +90,10 @@ func (s *BCScraper) extractArticleList(since time.Time, doc *goquery.Document) (
 func (s *BCScraper) addArticleContent(articles []domain.Article) ([]domain.Article, ScraperErrors) {
 	var errs ScraperErrors
 	for i := range articles {
+		// avoid throttling or blocking by bleeping computer
+		time.Sleep(750 * time.Millisecond)
 		doc, err := fetchDocument(articles[i].SourceURL)
+
 		if err != nil {
 			errs = append(errs, &ScraperError{Scraper: s.Name(), Err: err})
 			continue
