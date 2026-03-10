@@ -12,7 +12,9 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
+	"github.com/jmpberlin/nightwatch/backend/migrations"
 	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
 )
 
 var db *sql.DB
@@ -66,6 +68,17 @@ func initDB() error {
 	return fmt.Errorf("failed to connect to database after 10 attempts: %v", err)
 }
 
+func runMigrations(db *sql.DB) error {
+	goose.SetDialect("postgres")
+	goose.SetBaseFS(migrations.FS)
+
+	if err := goose.Up(db, "."); err != nil {
+		return fmt.Errorf("goose migration failed: %w", err)
+	}
+	slog.Info("database migrations completed successfully")
+	return nil
+}
+
 func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	slog.Info("Healthcheck",
@@ -85,6 +98,9 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
+	if err := runMigrations(db); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
 
 	port := getPort()
 	http.HandleFunc("/status", healthcheckHandler)

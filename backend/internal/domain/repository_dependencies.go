@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-type Technology struct {
+type RepositoryDependency struct {
 	ID           string
 	RepositoryID string
 	Name         string

@@ -25,9 +25,9 @@ type MatchRepository interface {
 	UpdateStatus(id string, status domain.MatchStatus) error
 }
 
-type TechnologyRepository interface {
-	SaveAll(technologies []domain.Technology) error
-	GetByRepoID(id string) ([]domain.Technology, error)
+type RepositoryDependencyRepository interface {
+	SaveAll(technologies []domain.RepositoryDependency) error
+	GetByRepoID(id string) ([]domain.RepositoryDependency, error)
 	DeleteByRepoID(id string) error
 }
 

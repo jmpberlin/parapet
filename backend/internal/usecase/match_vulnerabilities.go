@@ -7,7 +7,7 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/internal/utility"
 )
 
-func MatchVulnerabilities(vulnerabilities []domain.Vulnerability, technologies []domain.Technology, repositoryID string) []domain.Match {
+func MatchVulnerabilities(vulnerabilities []domain.Vulnerability, technologies []domain.RepositoryDependency, repositoryID string) []domain.Match {
 	var matches []domain.Match
 
 	for _, vuln := range vulnerabilities {
@@ -21,7 +21,7 @@ func MatchVulnerabilities(vulnerabilities []domain.Vulnerability, technologies [
 	return matches
 }
 
-func matchVulnerabilityToTechnology(vuln domain.Vulnerability, tech domain.Technology, repositoryID string) (domain.Match, bool) {
+func matchVulnerabilityToTechnology(vuln domain.Vulnerability, tech domain.RepositoryDependency, repositoryID string) (domain.Match, bool) {
 	for _, affected := range vuln.AffectedTechnologies {
 		if affected.PURL != "" && tech.PURL != "" {
 			if purlsMatch(affected.PURL, tech.PURL) {
@@ -80,7 +80,7 @@ func confirmOrWarn(versionRange, version string) domain.MatchStatus {
 
 func buildMatch(
 	vuln domain.Vulnerability,
-	tech domain.Technology,
+	tech domain.RepositoryDependency,
 	repositoryID string,
 	status domain.MatchStatus,
 ) domain.Match {
