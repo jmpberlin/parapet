@@ -28,4 +28,10 @@ For each affected technology provide:
   - nuget: pkg:nuget/Newtonsoft.Json@13.0.1
   - composer: pkg:composer/laravel/framework@9.0.0
   Leave empty string if unknown.
-- version_range: affected version range, e.g. "<2.1.0" or ">=1.0.0 <1.5.0". Leave empty if unknown.`
+- version_range: affected version range, e.g. "<2.1.0" or ">=1.0.0 <1.5.0". Leave empty if unknown.
+For each affected technology, research the official package name and provide 
+the PURL. For example if the article mentions "Apache Log4j", the PURL is 
+pkg:maven/org.apache.logging.log4j/log4j-core. 
+If you cannot determine the exact PURL with confidence, leave it empty 
+rather than guessing.
+`

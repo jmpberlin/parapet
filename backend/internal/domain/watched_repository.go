@@ -15,4 +15,5 @@ type WatchedRepository struct {
 	OwnerName      string
 	RepositoryName string
 	IntegratedAt   time.Time
+	ArchivedAt     *time.Time
 }
