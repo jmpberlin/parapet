@@ -42,16 +42,16 @@ func NewGithubClient() *GitHubClient {
 	}
 }
 
-func (g *GitHubClient) GetDependencies(owner, repo, token string) ([]domain.Technology, error) {
+func (g *GitHubClient) GetDependencies(owner, repo, token string) ([]domain.RepositoryDependency, error) {
 	sbom, err := g.fetchSBOM(owner, repo, token)
 	if err != nil {
 		return nil, err
 	}
 
 	// Skipping first package, it's the repository itself
-	var dependencies []domain.Technology
+	var dependencies []domain.RepositoryDependency
 	for _, pkg := range sbom.Sbom.Packages[1:] {
-		dependencies = append(dependencies, domain.Technology{
+		dependencies = append(dependencies, domain.RepositoryDependency{
 			Name:    pkg.Name,
 			Version: pkg.Version,
 			PURL:    extractPURL(pkg.ExternalRefs),
