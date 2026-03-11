@@ -12,6 +12,7 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
+	"github.com/jmpberlin/nightwatch/backend/internal/repository/postgres"
 	"github.com/jmpberlin/nightwatch/backend/migrations"
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
@@ -104,6 +105,9 @@ func main() {
 
 	port := getPort()
 	http.HandleFunc("/status", healthcheckHandler)
+
+	articleRepo := postgres.NewArticleRepository(db)
+
 	BCScraper := crawler.NewBCScraper()
 	orchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{BCScraper}, time.Hour*120)
 	claudeApiKey := getEnv("CLAUDE_API_KEY", "")

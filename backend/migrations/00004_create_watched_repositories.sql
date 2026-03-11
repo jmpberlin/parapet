@@ -5,7 +5,8 @@ CREATE TABLE watched_repositories (
     owner_name TEXT NOT NULL, 
     repository_name TEXT NOT NULL, 
     integrated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), 
-    archived_at TIMESTAMPTZ
+    archived_at TIMESTAMPTZ,
+    last_scanned_at TIMESTAMPTZ
 );
 
 -- +goose Down

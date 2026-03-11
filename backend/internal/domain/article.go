@@ -20,4 +20,5 @@ type Article struct {
 	ContentCleaned string
 	CrawledAt      time.Time
 	ProcessedAt    *time.Time
+	UpdatedAt      *time.Time
 }

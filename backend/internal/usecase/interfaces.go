@@ -1,13 +1,17 @@
 package usecase
 
-import "github.com/jmpberlin/nightwatch/backend/internal/domain"
+import (
+	"time"
+
+	"github.com/jmpberlin/nightwatch/backend/internal/domain"
+)
 
 type VulnerabilityRepository interface {
 	Save(vulnerability domain.Vulnerability) error
 	GetAll() ([]domain.Vulnerability, error)
 	GetByCVE(cve string) (*domain.Vulnerability, error)
 	GetByID(id string) (*domain.Vulnerability, error)
-	GetUnprocessed() ([]domain.Vulnerability, error)
+	GetNewerThan(timestamp time.Time) ([]domain.Vulnerability, error)
 }
 
 type ArticleRepository interface {
@@ -25,10 +29,12 @@ type MatchRepository interface {
 	UpdateStatus(id string, status domain.MatchStatus) error
 }
 
-type RepositoryDependencyRepository interface {
+type DependencyRepository interface {
 	SaveAll(technologies []domain.RepositoryDependency) error
 	GetByRepoID(id string) ([]domain.RepositoryDependency, error)
-	DeleteByRepoID(id string) error
+	DeleteAllByRepoID(id string) error
+	DeleteByIDs(ids []string) error
+	Save(dep domain.RepositoryDependency) error
 }
 
 type WatchedRepoRepository interface {
@@ -36,4 +42,5 @@ type WatchedRepoRepository interface {
 	Archive(id string) error
 	GetByID(id string) (*domain.WatchedRepository, error)
 	GetAll() ([]domain.WatchedRepository, error)
+	UpdateLastScannedAt(repoID string, scannedAt time.Time) error
 }
