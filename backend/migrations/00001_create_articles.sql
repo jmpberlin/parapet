@@ -9,7 +9,8 @@ CREATE TABLE articles (
     content_cleaned TEXT,
     published_at TIMESTAMPTZ NOT NULL,
     crawled_at TIMESTAMPTZ NOT NULL,
-    processed_at TIMESTAMPTZ
+    processed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
 );
 
 -- +goose Down
