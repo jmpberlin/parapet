@@ -23,8 +23,8 @@ func MatchVulnerabilities(vulnerabilities []domain.Vulnerability, technologies [
 
 func matchVulnerabilityToTechnology(vuln domain.Vulnerability, tech domain.RepositoryDependency, repositoryID string) (domain.Match, bool) {
 	for _, affected := range vuln.AffectedTechnologies {
-		if *affected.PURL != "" && tech.PURL != "" {
-			if purlsMatch(*affected.PURL, tech.PURL) {
+		if affected.PURL != "" && tech.PURL != "" {
+			if purlsMatch(affected.PURL, tech.PURL) {
 				status := confirmOrWarn(affected.VersionRange, tech.Version)
 				return buildMatch(vuln, tech, repositoryID, status), true
 			}

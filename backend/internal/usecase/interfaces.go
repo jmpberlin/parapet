@@ -19,6 +19,7 @@ type ArticleRepository interface {
 	GetByID(id string) (*domain.Article, error)
 	GetByURL(url string) (*domain.Article, error)
 	GetUnprocessed() ([]domain.Article, error)
+	MarkProcessed(id string) error
 }
 
 type MatchRepository interface {
@@ -35,6 +36,7 @@ type DependencyRepository interface {
 	DeleteAllByRepoID(id string) error
 	DeleteByIDs(ids []string) error
 	Save(dep domain.RepositoryDependency) error
+	UpdateLastMatchedAt(id string, matchedAt time.Time) error
 }
 
 type WatchedRepoRepository interface {
@@ -42,5 +44,16 @@ type WatchedRepoRepository interface {
 	Archive(id string) error
 	GetByID(id string) (*domain.WatchedRepository, error)
 	GetAll() ([]domain.WatchedRepository, error)
-	UpdateLastScannedAt(repoID string, scannedAt time.Time) error
+	UpdateLastFetchedAt(repoID string, fetchedAt time.Time) error
+}
+
+type CrawlerOrchestrator interface {
+	FetchArticles(since time.Time) ([]domain.Article, []error)
+}
+
+type VulnerabilityExtractor interface {
+	ExtractVulnerabilities(articles []domain.Article) []domain.ArticleExtractionResult
+}
+type DependencyFetcher interface {
+	GetDependencies(owner, repo, token string) ([]domain.RepositoryDependency, error)
 }
