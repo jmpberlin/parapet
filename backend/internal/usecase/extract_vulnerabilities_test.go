@@ -54,8 +54,8 @@ func (m *mockExtractor) ExtractVulnerabilities(articles []domain.Article) []doma
 	return m.results
 }
 
-func newUseCase(articleRepo *mockArticleRepo, vulnRepo *mockVulnerabilityRepo, extractor *mockExtractor) *usecase.VulnerabilityExtractionUseCase {
-	return usecase.NewVulnerabilityExtractionUseCase(vulnRepo, articleRepo, extractor)
+func newUseCase(articleRepo *mockArticleRepo, vulnRepo *mockVulnerabilityRepo, extractor *mockExtractor) *usecase.ExtractVulnerabilitiesUseCase {
+	return usecase.NewExtractVulnerabilitiesUseCase(vulnRepo, articleRepo, extractor)
 }
 
 func TestVulnerabilityExtraction_GetUnprocessedFails_ReturnsEarlyWithError(t *testing.T) {
