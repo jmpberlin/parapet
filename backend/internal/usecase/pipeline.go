@@ -5,10 +5,10 @@ import "time"
 type PipelineStage string
 
 const (
-	StageHarvest         PipelineStage = "harvest"
-	StageExtract         PipelineStage = "extract"
-	StageDependencyFetch PipelineStage = "dependecy_fetch"
-	StageMatch           PipelineStage = "match"
+	StageHarvest    PipelineStage = "harvest"
+	StageExtract    PipelineStage = "extract"
+	StageUpdateDeps PipelineStage = "update_deps"
+	StageMatch      PipelineStage = "match"
 )
 
 type PipelineError struct {
@@ -39,8 +39,8 @@ func (r *PipelineResult) HasErrors() bool {
 }
 
 type Pipeline struct {
-	harvest *HarvestArticlesUseCase
-	// extract   *ExtractVulnerabilitiesUseCase
-	// fetchDeps *FetchDependenciesUseCase
+	harvest   *HarvestArticlesUseCase
+	extract   *ExtractVulnerabilitiesUseCase
+	fetchDeps *UpdateDependenciesUseCase
 	// match     *MatchVulnerabilitiesUseCase
 }

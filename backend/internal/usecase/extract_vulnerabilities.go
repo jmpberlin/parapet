@@ -12,21 +12,21 @@ type ExtractionStageResult struct {
 	Errors                   []error
 }
 
-type VulnerabilityExtractionUseCase struct {
+type ExtractVulnerabilitiesUseCase struct {
 	vulnerabilityRepo VulnerabilityRepository
 	articleRepo       ArticleRepository
 	extractor         VulnerabilityExtractor
 }
 
-func NewVulnerabilityExtractionUseCase(vulnerabilityRepo VulnerabilityRepository, articleRepo ArticleRepository, extractor VulnerabilityExtractor) *VulnerabilityExtractionUseCase {
-	return &VulnerabilityExtractionUseCase{
+func NewExtractVulnerabilitiesUseCase(vulnerabilityRepo VulnerabilityRepository, articleRepo ArticleRepository, extractor VulnerabilityExtractor) *ExtractVulnerabilitiesUseCase {
+	return &ExtractVulnerabilitiesUseCase{
 		vulnerabilityRepo: vulnerabilityRepo,
 		articleRepo:       articleRepo,
 		extractor:         extractor,
 	}
 }
 
-func (v *VulnerabilityExtractionUseCase) Execute() ExtractionStageResult {
+func (v *ExtractVulnerabilitiesUseCase) Execute() ExtractionStageResult {
 	result := ExtractionStageResult{}
 
 	articles, err := v.articleRepo.GetUnprocessed()
@@ -59,7 +59,7 @@ func (v *VulnerabilityExtractionUseCase) Execute() ExtractionStageResult {
 	return result
 }
 
-func (v *VulnerabilityExtractionUseCase) processExtractionResult(er domain.ArticleExtractionResult) (int, []error) {
+func (v *ExtractVulnerabilitiesUseCase) processExtractionResult(er domain.ArticleExtractionResult) (int, []error) {
 	var errs []error
 
 	if er.Err != nil {
@@ -102,7 +102,7 @@ func (v *VulnerabilityExtractionUseCase) processExtractionResult(er domain.Artic
 	return saved, errs
 }
 
-func (v *VulnerabilityExtractionUseCase) saveVulnerabilities(vulns []domain.Vulnerability) (int, []error) {
+func (v *ExtractVulnerabilitiesUseCase) saveVulnerabilities(vulns []domain.Vulnerability) (int, []error) {
 	var errs []error
 	saved := 0
 
@@ -122,7 +122,7 @@ func (v *VulnerabilityExtractionUseCase) saveVulnerabilities(vulns []domain.Vuln
 	return saved, errs
 }
 
-func (v *VulnerabilityExtractionUseCase) setArticleToProcessed(id string) error {
+func (v *ExtractVulnerabilitiesUseCase) setArticleToProcessed(id string) error {
 	if err := v.articleRepo.MarkProcessed(id); err != nil {
 		slog.Error("failed to mark article as processed",
 			"stage", StageExtract,
