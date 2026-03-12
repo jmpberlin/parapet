@@ -35,37 +35,34 @@ func (se ScraperErrors) HasErrors() bool {
 	return len(se) > 0
 }
 
-type SourceScraper interface {
-	FetchArticles(since time.Time) ([]domain.Article, error)
-	Name() string
-}
-
 type CrawlerOrchestrator struct {
-	scrapers       []SourceScraper
-	lookbackPeriod time.Duration
+	scrapers []SourceScraper
 }
 
-func NewCrawlerOrchestrator(scrapers []SourceScraper, lookbackPeriod time.Duration) *CrawlerOrchestrator {
+func NewCrawlerOrchestrator(scrapers []SourceScraper) *CrawlerOrchestrator {
 	return &CrawlerOrchestrator{
-		scrapers:       scrapers,
-		lookbackPeriod: lookbackPeriod,
+		scrapers: scrapers,
 	}
 }
 
-func (o *CrawlerOrchestrator) FetchAll() ([]domain.Article, error) {
+func (o *CrawlerOrchestrator) FetchArticles(since time.Time) ([]domain.Article, []error) {
 	var allArticles []domain.Article
-	var errs ScraperErrors
-	since := time.Now().Add(-o.lookbackPeriod)
+	var scraperErrs ScraperErrors
 
 	for _, scraper := range o.scrapers {
 		scrapedArticles, err := scraper.FetchArticles(since)
 		if err != nil {
-			errs = append(errs, &ScraperError{Scraper: scraper.Name(), Err: err})
+			scraperErrs = append(scraperErrs, &ScraperError{Scraper: scraper.Name(), Err: err})
 		}
 		allArticles = append(allArticles, scrapedArticles...)
 	}
-	if errs.HasErrors() {
-		return allArticles, errs
+	if !scraperErrs.HasErrors() {
+		return allArticles, nil
 	}
-	return allArticles, nil
+
+	errs := make([]error, len(scraperErrs))
+	for i, e := range scraperErrs {
+		errs[i] = e
+	}
+	return allArticles, errs
 }

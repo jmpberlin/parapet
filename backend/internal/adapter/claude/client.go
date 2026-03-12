@@ -3,7 +3,6 @@ package claude
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -26,12 +25,6 @@ type vulnerabilityDTO struct {
 		VersionRange string `json:"VersionRange"`
 		PURL         string `json:"PURL"`
 	} `json:"AffectedTechnologies"`
-}
-
-type articleResult struct {
-	index           int
-	vulnerabilities []domain.Vulnerability
-	err             error
 }
 
 var extractionTool = anthropic.ToolParam{
@@ -81,12 +74,12 @@ func NewClaudeClient(apiKey string) *claudeClient {
 	return &claudeClient{client: &client}
 }
 
-func (c *claudeClient) ExtractVulnerabilities(articles []domain.Article) ([]domain.Vulnerability, error) {
+func (c *claudeClient) ExtractVulnerabilities(articles []domain.Article) []domain.ArticleExtractionResult {
 	return processArticles(context.TODO(), c.client, articles)
 }
 
-func processArticles(ctx context.Context, client *anthropic.Client, articles []domain.Article) ([]domain.Vulnerability, error) {
-	results := make(chan articleResult, len(articles))
+func processArticles(ctx context.Context, client *anthropic.Client, articles []domain.Article) []domain.ArticleExtractionResult {
+	results := make(chan domain.ArticleExtractionResult, len(articles))
 	semaphore := make(chan struct{}, 5)
 
 	var wg sync.WaitGroup
@@ -97,7 +90,7 @@ func processArticles(ctx context.Context, client *anthropic.Client, articles []d
 			defer wg.Done()
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
-			results <- extractFromArticle(ctx, client, idx, art)
+			results <- extractFromArticle(ctx, client, art)
 		}(i, a)
 	}
 
@@ -106,10 +99,10 @@ func processArticles(ctx context.Context, client *anthropic.Client, articles []d
 		close(results)
 	}()
 
-	return collectResults(articles, results), nil
+	return collectResults(results)
 }
 
-func extractFromArticle(ctx context.Context, client *anthropic.Client, idx int, art domain.Article) articleResult {
+func extractFromArticle(ctx context.Context, client *anthropic.Client, art domain.Article) domain.ArticleExtractionResult {
 	message, err := client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaudeHaiku4_5,
 		MaxTokens: 4096,
@@ -123,15 +116,16 @@ func extractFromArticle(ctx context.Context, client *anthropic.Client, idx int, 
 		},
 	})
 	if err != nil {
-		return articleResult{index: idx, err: err}
+		return domain.ArticleExtractionResult{ArticleID: art.ID, Err: err}
 	}
 
 	vulns, err := parseMessageVulnerabilities(message, art)
 	if err != nil {
-		return articleResult{index: idx, err: err}
+		return domain.ArticleExtractionResult{ArticleID: art.ID, Err: err}
 	}
 
-	return articleResult{index: idx, vulnerabilities: vulns}
+	return domain.ArticleExtractionResult{ArticleID: art.ID, Vulnerabilities: vulns}
+
 }
 
 func parseMessageVulnerabilities(message *anthropic.Message, art domain.Article) ([]domain.Vulnerability, error) {
@@ -172,14 +166,10 @@ func toVulnerability(dto vulnerabilityDTO, art domain.Article) domain.Vulnerabil
 	}
 }
 
-func collectResults(articles []domain.Article, results <-chan articleResult) []domain.Vulnerability {
-	var vulns []domain.Vulnerability
+func collectResults(results <-chan domain.ArticleExtractionResult) []domain.ArticleExtractionResult {
+	var formatted = []domain.ArticleExtractionResult{}
 	for r := range results {
-		if r.err != nil {
-			slog.Error("failed to process article", "articleID", articles[r.index].ID, "error", r.err)
-			continue
-		}
-		vulns = append(vulns, r.vulnerabilities...)
+		formatted = append(formatted, r)
 	}
-	return vulns
+	return formatted
 }

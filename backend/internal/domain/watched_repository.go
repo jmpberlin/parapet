@@ -16,5 +16,5 @@ type WatchedRepository struct {
 	RepositoryName string
 	IntegratedAt   time.Time
 	ArchivedAt     *time.Time
-	LastScannedAt  *time.Time
+	LastFetchedAt  *time.Time
 }

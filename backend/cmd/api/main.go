@@ -9,10 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
-	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
-	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
-	"github.com/jmpberlin/nightwatch/backend/internal/repository/postgres"
 	"github.com/jmpberlin/nightwatch/backend/migrations"
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
@@ -106,45 +102,6 @@ func main() {
 	port := getPort()
 	http.HandleFunc("/status", healthcheckHandler)
 
-	articleRepo := postgres.NewArticleRepository(db)
-
-	BCScraper := crawler.NewBCScraper()
-	orchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{BCScraper}, time.Hour*120)
-	claudeApiKey := getEnv("CLAUDE_API_KEY", "")
-	vulnerabilityExtractor := claude.NewClaudeClient(claudeApiKey)
-
-	articles, err := orchestrator.FetchAll()
-	if err != nil && len(articles) == 0 {
-		slog.Error("crawler orchestrator failed to fetch any articles",
-			"error", err,
-		)
-	}
-	if err != nil && len(articles) > 0 {
-		slog.Warn("at least one crawler collected errors when fetching articles",
-			"error", err,
-			"collected_articles", articles)
-	}
-	if err == nil && len(articles) == 0 {
-		slog.Warn("crawler orchestrator didn't encounter any errors, but didn't collect any articles - check if target html structure changed")
-	}
-	vulnerabilities, err := vulnerabilityExtractor.ExtractVulnerabilities(articles)
-	if err != nil {
-		slog.Warn("when extracting vulnerabilities from articles, the following errors occured",
-			"errors", err,
-			"articles", articles)
-	}
-	slog.Info("extracted vulnerabilities",
-		"vulnerabilities", vulnerabilities)
-
-	githubOwner := getEnv("GITHUB_OWNER", "")
-	githubRepo := getEnv("GITHUB_REPO", "")
-	githubToken := getEnv("GITHUB_TOKEN", "")
-	githubClient := github.NewGithubClient()
-	dependencies, err := githubClient.GetDependencies(githubOwner, githubRepo, githubToken)
-	if err != nil {
-		slog.Error("github adapter client", "failed to fetch and process list of software components of repo", err)
-	}
-	slog.Info("successfully fetched and processed dependencies", "dependencies", dependencies)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}

@@ -40,7 +40,7 @@ func (r *WatchedRepoRepository) Archive(id string) error {
 
 func (r *WatchedRepoRepository) GetByID(id string) (*domain.WatchedRepository, error) {
 	row := r.db.QueryRow(`
-		SELECT id, git_provider, owner_name, repository_name, integrated_at, archived_at, last_scanned_at
+		SELECT id, git_provider, owner_name, repository_name, integrated_at, archived_at, last_fetched_at
 		FROM watched_repositories WHERE id = $1
 	`, id)
 	return r.scanWatchedRepo(row)
@@ -48,7 +48,7 @@ func (r *WatchedRepoRepository) GetByID(id string) (*domain.WatchedRepository, e
 
 func (r *WatchedRepoRepository) GetAll() ([]domain.WatchedRepository, error) {
 	rows, err := r.db.Query(`
-		SELECT id, git_provider, owner_name, repository_name, integrated_at, archived_at, last_scanned_at
+		SELECT id, git_provider, owner_name, repository_name, integrated_at, archived_at, last_fetched_at
 		FROM watched_repositories
 		WHERE archived_at IS NULL
 		ORDER BY integrated_at DESC
@@ -64,10 +64,10 @@ func (r *WatchedRepoRepository) GetAll() ([]domain.WatchedRepository, error) {
 		var gitProvider string
 		err := rows.Scan(
 			&repo.ID, &gitProvider, &repo.OwnerName, &repo.RepositoryName,
-			&repo.IntegratedAt, &repo.ArchivedAt, &repo.LastScannedAt,
+			&repo.IntegratedAt, &repo.ArchivedAt, &repo.LastFetchedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan watched repository: %w", err)
+			return nil, fmt.Errorf("failed to fetch from watched repository: %w", err)
 		}
 		repo.GitProvider = domain.GitProvider(gitProvider)
 		repos = append(repos, repo)
@@ -75,12 +75,12 @@ func (r *WatchedRepoRepository) GetAll() ([]domain.WatchedRepository, error) {
 	return repos, nil
 }
 
-func (r *WatchedRepoRepository) UpdateLastScannedAt(repoID string, scannedAt time.Time) error {
+func (r *WatchedRepoRepository) UpdateLastFetchedAt(repoID string, fetchedAt time.Time) error {
 	_, err := r.db.Exec(`
-		UPDATE watched_repositories SET last_scanned_at = $1 WHERE id = $2
-	`, scannedAt, repoID)
+		UPDATE watched_repositories SET last_fetched_at = $1 WHERE id = $2
+	`, fetchedAt, repoID)
 	if err != nil {
-		return fmt.Errorf("failed to update last scanned at: %w", err)
+		return fmt.Errorf("failed to update last_fetched_at: %w", err)
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func (r *WatchedRepoRepository) scanWatchedRepo(row *sql.Row) (*domain.WatchedRe
 	var gitProvider string
 	err := row.Scan(
 		&repo.ID, &gitProvider, &repo.OwnerName, &repo.RepositoryName,
-		&repo.IntegratedAt, &repo.ArchivedAt, &repo.LastScannedAt,
+		&repo.IntegratedAt, &repo.ArchivedAt, &repo.LastFetchedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
