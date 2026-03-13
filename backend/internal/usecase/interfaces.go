@@ -56,5 +56,5 @@ type VulnerabilityExtractor interface {
 	ExtractVulnerabilities(articles []domain.Article) []domain.ArticleExtractionResult
 }
 type DependencyFetcher interface {
-	GetDependencies(owner, repo, token string) ([]domain.RepositoryDependency, error)
+	GetDependencies(owner, repo string) ([]domain.RepositoryDependency, error)
 }

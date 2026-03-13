@@ -19,15 +19,13 @@ type UpdateDependenciesUseCase struct {
 	watchedRepoRepo WatchedRepoRepository
 	dependencyRepo  DependencyRepository
 	fetcher         DependencyFetcher
-	githubToken     string
 }
 
-func NewUpdateDependenciesUseCase(watchedRepoRepo WatchedRepoRepository, dependencyRepo DependencyRepository, fetcher DependencyFetcher, githubToken string) *UpdateDependenciesUseCase {
+func NewUpdateDependenciesUseCase(watchedRepoRepo WatchedRepoRepository, dependencyRepo DependencyRepository, fetcher DependencyFetcher) *UpdateDependenciesUseCase {
 	return &UpdateDependenciesUseCase{
 		watchedRepoRepo: watchedRepoRepo,
 		dependencyRepo:  dependencyRepo,
 		fetcher:         fetcher,
-		githubToken:     githubToken,
 	}
 }
 
@@ -80,7 +78,7 @@ func (u *UpdateDependenciesUseCase) updateRepo(repo domain.WatchedRepository) (i
 }
 
 func (u *UpdateDependenciesUseCase) fetchDeps(repo domain.WatchedRepository) ([]domain.RepositoryDependency, []domain.RepositoryDependency, error) {
-	githubDeps, err := u.fetcher.GetDependencies(repo.OwnerName, repo.RepositoryName, u.githubToken)
+	githubDeps, err := u.fetcher.GetDependencies(repo.OwnerName, repo.RepositoryName)
 	if err != nil {
 		slog.Error("failed to fetch dependencies from github",
 			"stage", StageUpdateDeps,

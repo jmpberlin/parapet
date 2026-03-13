@@ -92,3 +92,13 @@ func (r *ArticleRepository) GetUnprocessed() ([]domain.Article, error) {
 	}
 	return articles, nil
 }
+
+func (r *ArticleRepository) MarkProcessed(id string) error {
+	_, err := r.db.Exec(`
+		UPDATE articles SET processed_at = NOW() WHERE id = $1
+	`, id)
+	if err != nil {
+		return fmt.Errorf("failed to mark article as processed: %w", err)
+	}
+	return nil
+}

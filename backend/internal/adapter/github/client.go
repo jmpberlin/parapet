@@ -34,16 +34,18 @@ type sbomResponse struct {
 
 type GitHubClient struct {
 	httpClient HTTPDoer
+	token      string
 }
 
-func NewGithubClient() *GitHubClient {
+func NewGithubClient(token string) *GitHubClient {
 	return &GitHubClient{
+		token:      token,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
-func (g *GitHubClient) GetDependencies(owner, repo, token string) ([]domain.RepositoryDependency, error) {
-	sbom, err := g.fetchSBOM(owner, repo, token)
+func (g *GitHubClient) GetDependencies(owner, repo string) ([]domain.RepositoryDependency, error) {
+	sbom, err := g.fetchSBOM(owner, repo, g.token)
 	if err != nil {
 		return nil, err
 	}
