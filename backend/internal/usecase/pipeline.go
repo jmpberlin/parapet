@@ -44,7 +44,7 @@ type Pipeline struct {
 	updateDeps *UpdateDependenciesUseCase
 	match      *MatchVulnerabilitiesUseCase
 	mu         sync.RWMutex
-	lastResult *PipelineResult
+	LastResult *PipelineResult
 }
 
 func NewPipeline(harvest *HarvestArticlesUseCase, extract *ExtractVulnerabilitiesUseCase, updateDeps *UpdateDependenciesUseCase, match *MatchVulnerabilitiesUseCase) *Pipeline {
@@ -85,7 +85,7 @@ func (p *Pipeline) Run() {
 	}
 
 	p.mu.Lock()
-	p.lastResult = &result
+	p.LastResult = &result
 	p.mu.Unlock()
 
 	slog.Info("pipeline run complete",
