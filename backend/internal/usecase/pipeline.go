@@ -42,5 +42,5 @@ type Pipeline struct {
 	harvest   *HarvestArticlesUseCase
 	extract   *ExtractVulnerabilitiesUseCase
 	fetchDeps *UpdateDependenciesUseCase
-	// match     *MatchVulnerabilitiesUseCase
+	match     *MatchVulnerabilitiesUseCase
 }
