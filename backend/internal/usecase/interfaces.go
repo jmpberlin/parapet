@@ -37,6 +37,7 @@ type DependencyRepository interface {
 	DeleteByIDs(ids []string) error
 	Save(dep domain.RepositoryDependency) error
 	UpdateLastMatchedAt(id string, matchedAt time.Time) error
+	GetByRepoIDOrderedByLastMatchedAt(repoID string) ([]domain.RepositoryDependency, error)
 }
 
 type WatchedRepoRepository interface {

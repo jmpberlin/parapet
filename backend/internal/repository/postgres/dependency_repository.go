@@ -93,3 +93,27 @@ func (r *DependencyRepository) UpdateLastMatchedAt(id string, matchedAt time.Tim
 	}
 	return nil
 }
+
+func (r *DependencyRepository) GetByRepoIDOrderedByLastMatchedAt(repoID string) ([]domain.RepositoryDependency, error) {
+	rows, err := r.db.Query(`
+		SELECT id, repository_id, name, version, purl, created_at, last_matched_at
+		FROM repository_dependencies
+		WHERE repository_id = $1
+		ORDER BY last_matched_at ASC NULLS FIRST
+	`, repoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get dependencies ordered by last_matched_at for repo %s: %w", repoID, err)
+	}
+	defer rows.Close()
+
+	var deps []domain.RepositoryDependency
+	for rows.Next() {
+		var d domain.RepositoryDependency
+		err := rows.Scan(&d.ID, &d.RepositoryID, &d.Name, &d.Version, &d.PURL, &d.CreatedAt, &d.LastMatchedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan dependency: %w", err)
+		}
+		deps = append(deps, d)
+	}
+	return deps, nil
+}
