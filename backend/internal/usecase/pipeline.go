@@ -1,6 +1,10 @@
 package usecase
 
-import "time"
+import (
+	"log/slog"
+	"sync"
+	"time"
+)
 
 type PipelineStage string
 
@@ -12,26 +16,22 @@ const (
 )
 
 type PipelineError struct {
-	Stage   PipelineStage
-	Message string
-	Err     error
+	Stage PipelineStage
+	Err   error
+}
+
+func (e PipelineError) Error() string {
+	return e.Err.Error()
 }
 
 type PipelineResult struct {
-	ArticlesHarvested   int
-	VulnsExtracted      int
-	DependenciesFetched int
-	MatchesFound        int
-	RanAt               time.Time
-	Errors              []PipelineError
-}
-
-func (r *PipelineResult) AddError(stage PipelineStage, msg string, err error) {
-	r.Errors = append(r.Errors, PipelineError{
-		Stage:   stage,
-		Message: msg,
-		Err:     err,
-	})
+	RanAt                    time.Time
+	ArticlesHarvested        int
+	VulnerabilitiesExtracted int
+	DepsAdded                int
+	DepsRemoved              int
+	MatchesFound             int
+	Errors                   []PipelineError
 }
 
 func (r *PipelineResult) HasErrors() bool {
@@ -39,8 +39,61 @@ func (r *PipelineResult) HasErrors() bool {
 }
 
 type Pipeline struct {
-	harvest   *HarvestArticlesUseCase
-	extract   *ExtractVulnerabilitiesUseCase
-	fetchDeps *UpdateDependenciesUseCase
-	match     *MatchVulnerabilitiesUseCase
+	harvest    *HarvestArticlesUseCase
+	extract    *ExtractVulnerabilitiesUseCase
+	updateDeps *UpdateDependenciesUseCase
+	match      *MatchVulnerabilitiesUseCase
+	mu         sync.RWMutex
+	lastResult *PipelineResult
+}
+
+func NewPipeline(harvest *HarvestArticlesUseCase, extract *ExtractVulnerabilitiesUseCase, updateDeps *UpdateDependenciesUseCase, match *MatchVulnerabilitiesUseCase) *Pipeline {
+	return &Pipeline{
+		harvest:    harvest,
+		extract:    extract,
+		updateDeps: updateDeps,
+		match:      match,
+	}
+}
+
+func (p *Pipeline) Run() {
+	result := PipelineResult{RanAt: time.Now()}
+
+	harvestResult := p.harvest.Execute()
+	result.ArticlesHarvested = harvestResult.ArticlesHarvested
+	for _, err := range harvestResult.Errors {
+		result.Errors = append(result.Errors, PipelineError{Stage: StageHarvest, Err: err})
+	}
+
+	extractResult := p.extract.Execute()
+	result.VulnerabilitiesExtracted = extractResult.VulnerabilitiesExtracted
+	for _, err := range extractResult.Errors {
+		result.Errors = append(result.Errors, PipelineError{Stage: StageExtract, Err: err})
+	}
+
+	updateDepsResult := p.updateDeps.Execute()
+	result.DepsAdded = updateDepsResult.DepsAdded
+	result.DepsRemoved = updateDepsResult.DepsRemoved
+	for _, err := range updateDepsResult.Errors {
+		result.Errors = append(result.Errors, PipelineError{Stage: StageUpdateDeps, Err: err})
+	}
+
+	matchResult := p.match.Execute()
+	result.MatchesFound = matchResult.MatchesFound
+	for _, err := range matchResult.Errors {
+		result.Errors = append(result.Errors, PipelineError{Stage: StageMatch, Err: err})
+	}
+
+	p.mu.Lock()
+	p.lastResult = &result
+	p.mu.Unlock()
+
+	slog.Info("pipeline run complete",
+		"articles_harvested", result.ArticlesHarvested,
+		"vulnerabilities_extracted", result.VulnerabilitiesExtracted,
+		"deps_added", result.DepsAdded,
+		"deps_removed", result.DepsRemoved,
+		"matches_found", result.MatchesFound,
+		"total_errors", len(result.Errors),
+	)
 }
