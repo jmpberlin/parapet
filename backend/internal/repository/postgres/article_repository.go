@@ -102,3 +102,30 @@ func (r *ArticleRepository) MarkProcessed(id string) error {
 	}
 	return nil
 }
+
+func (r *ArticleRepository) GetByDays(days int) ([]domain.Article, error) {
+	rows, err := r.db.Query(`
+		SELECT id, source_url, host_domain, headline, author, content_html,
+		       content_cleaned, published_at, crawled_at, processed_at, updated_at
+		FROM articles
+		WHERE published_at >= NOW() - ($1 * INTERVAL '1 day')
+		ORDER BY published_at DESC
+	`, days)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get articles by days: %w", err)
+	}
+	defer rows.Close()
+
+	var articles []domain.Article
+	for rows.Next() {
+		var a domain.Article
+		err := rows.Scan(&a.ID, &a.SourceURL, &a.HostDomain, &a.Headline, &a.Author,
+			&a.ContentHTML, &a.ContentCleaned, &a.PublishedAt, &a.CrawledAt,
+			&a.ProcessedAt, &a.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan article: %w", err)
+		}
+		articles = append(articles, a)
+	}
+	return articles, nil
+}

@@ -20,6 +20,7 @@ type ArticleRepository interface {
 	GetByURL(url string) (*domain.Article, error)
 	GetUnprocessed() ([]domain.Article, error)
 	MarkProcessed(id string) error
+	GetByDays(days int) ([]domain.Article, error)
 }
 
 type MatchRepository interface {
