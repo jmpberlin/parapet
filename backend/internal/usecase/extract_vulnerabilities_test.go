@@ -28,6 +28,7 @@ func (m *mockArticleRepo) MarkProcessed(id string) error {
 func (m *mockArticleRepo) Save(article domain.Article) error            { return nil }
 func (m *mockArticleRepo) GetByID(id string) (*domain.Article, error)   { return nil, nil }
 func (m *mockArticleRepo) GetByURL(url string) (*domain.Article, error) { return nil, nil }
+func (m *mockArticleRepo) GetByDays(days int) ([]domain.Article, error) { return nil, nil }
 
 type mockVulnerabilityRepo struct {
 	saveCalls []domain.Vulnerability

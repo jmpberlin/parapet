@@ -9,9 +9,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
+	"github.com/jmpberlin/nightwatch/backend/internal/handler"
 	"github.com/jmpberlin/nightwatch/backend/internal/repository/postgres"
 	"github.com/jmpberlin/nightwatch/backend/internal/usecase"
 	"github.com/jmpberlin/nightwatch/backend/migrations"
@@ -126,13 +129,27 @@ func main() {
 	startScheduler(pipeline)
 
 	// http server
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", healthcheckHandler)
-	mux.HandleFunc("GET /pipeline/status", pipelineStatusHandler(pipeline))
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	r.Get("/health", healthcheckHandler)
+
+	r.Post("/pipeline/run", handler.PipelineRunHandler(pipeline))
+	r.Get("/pipeline/status", handler.PipelineStatusHandler(pipeline))
+
+	r.Get("/articles", handler.GetArticlesHandler(articleRepo))
+	r.Get("/articles/{id}", handler.GetArticleByIDHandler(articleRepo))
+
+	r.Get("/repositories", handler.GetRepositoriesHandler(watchedRepositoriesRepo))
+	r.Get("/repositories/{id}", handler.GetRepositoryDetailHandler(watchedRepositoriesRepo, depRepo, matchRepo))
+	r.Post("/repositories", handler.CreateRepositoryHandler(watchedRepositoriesRepo))
+
+	r.Get("/vulnerabilities", handler.GetVulnerabilitiesHandler(vulnRepo))
 
 	port := getPort()
 	slog.Info("starting http server", "port", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("server failed to start: %v", err)
 	}
 }
@@ -140,24 +157,4 @@ func main() {
 func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"status": "ok"}`)
-}
-
-func pipelineStatusHandler(pipeline *usecase.Pipeline) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		result := pipeline.LastResult
-		if result == nil {
-			fmt.Fprintf(w, `{"status": "no pipeline run yet"}`)
-			return
-		}
-		fmt.Fprintf(w, `{"ran_at": "%s", "articles_harvested": %d, "vulnerabilities_extracted": %d, "deps_added": %d, "deps_removed": %d, "matches_found": %d, "total_errors": %d}`,
-			result.RanAt.Format(time.RFC3339),
-			result.ArticlesHarvested,
-			result.VulnerabilitiesExtracted,
-			result.DepsAdded,
-			result.DepsRemoved,
-			result.MatchesFound,
-			len(result.Errors),
-		)
-	}
 }
