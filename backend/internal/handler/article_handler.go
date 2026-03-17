@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jmpberlin/nightwatch/backend/internal/domain"
@@ -11,6 +12,36 @@ import (
 type ArticleRepository interface {
 	GetByDays(days int) ([]domain.Article, error)
 	GetByID(id string) (*domain.Article, error)
+}
+
+type articleResponse struct {
+	ID             string     `json:"id"`
+	SourceURL      string     `json:"source_url"`
+	HostDomain     string     `json:"host_domain"`
+	PublishedAt    time.Time  `json:"published_at"`
+	Headline       string     `json:"headline"`
+	Author         string     `json:"author"`
+	ContentHTML    string     `json:"content_html"`
+	ContentCleaned string     `json:"content_cleaned"`
+	CrawledAt      time.Time  `json:"crawled_at"`
+	ProcessedAt    *time.Time `json:"processed_at"`
+	UpdatedAt      *time.Time `json:"updated_at"`
+}
+
+func toArticleResponse(a domain.Article) articleResponse {
+	return articleResponse{
+		ID:             a.ID,
+		SourceURL:      a.SourceURL,
+		HostDomain:     string(a.HostDomain),
+		PublishedAt:    a.PublishedAt,
+		Headline:       a.Headline,
+		Author:         a.Author,
+		ContentHTML:    a.ContentHTML,
+		ContentCleaned: a.ContentCleaned,
+		CrawledAt:      a.CrawledAt,
+		ProcessedAt:    a.ProcessedAt,
+		UpdatedAt:      a.UpdatedAt,
+	}
 }
 
 func GetArticlesHandler(repo ArticleRepository) http.HandlerFunc {
@@ -32,7 +63,11 @@ func GetArticlesHandler(repo ArticleRepository) http.HandlerFunc {
 			return
 		}
 
-		writeJSON(w, articles)
+		response := make([]articleResponse, len(articles))
+		for i, a := range articles {
+			response[i] = toArticleResponse(a)
+		}
+		writeJSON(w, response)
 	}
 }
 
@@ -50,6 +85,6 @@ func GetArticleByIDHandler(repo ArticleRepository) http.HandlerFunc {
 			return
 		}
 
-		writeJSON(w, article)
+		writeJSON(w, toArticleResponse(*article))
 	}
 }

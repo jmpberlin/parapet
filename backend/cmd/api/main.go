@@ -20,6 +20,7 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/migrations"
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 var db *sql.DB
@@ -33,7 +34,7 @@ func getEnv(key, defaultValue string) string {
 }
 
 func getPort() string {
-	return getEnv("PORT", "8081")
+	return getEnv("PORT", "8080")
 }
 
 func initDB() error {
@@ -132,8 +133,13 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(corsMiddleware)
 
 	r.Get("/health", healthcheckHandler)
+	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("/docs/openapi.yaml")))
+	r.Get("/docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "openapi.yaml")
+	})
 
 	r.Post("/pipeline/run", handler.PipelineRunHandler(pipeline))
 	r.Get("/pipeline/status", handler.PipelineStatusHandler(pipeline))
@@ -157,4 +163,18 @@ func main() {
 func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"status": "ok"}`)
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: set origin before deploy — replace * with https://parapet.digital
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

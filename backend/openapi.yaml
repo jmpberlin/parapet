@@ -1,0 +1,732 @@
+openapi: 3.0.3
+info:
+  title: Parapet API
+  description: >
+    Parapet is a cybersecurity vulnerability monitoring tool. It crawls security
+    news sources (e.g. BleepingComputer), extracts CVE disclosures using an LLM,
+    and matches them against the dependencies of watched GitHub repositories.
+    This API exposes the resulting articles, vulnerabilities, repository data,
+    and pipeline controls.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Server liveness check
+  - name: Articles
+    description: Security news articles crawled from external sources
+  - name: Repositories
+    description: GitHub repositories being monitored for vulnerable dependencies
+  - name: Vulnerabilities
+    description: CVEs extracted from security articles
+  - name: Pipeline
+    description: Orchestration pipeline that harvests, extracts, and matches vulnerabilities
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns a simple status object confirming the API is reachable.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /articles:
+    get:
+      tags: [Articles]
+      summary: List recent articles
+      description: >
+        Returns security news articles crawled within the last N days.
+        Defaults to 7 days when the `days` parameter is omitted.
+      operationId: getArticles
+      parameters:
+        - name: days
+          in: query
+          description: >
+            Number of days to look back when filtering articles.
+            Must be a positive integer. Defaults to 7.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 7
+            example: 30
+      responses:
+        '200':
+          description: List of articles published within the requested window
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Article'
+        '400':
+          description: The `days` parameter is not a valid positive integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: invalid days parameter
+        '500':
+          description: Database or internal error while fetching articles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /articles/{id}:
+    get:
+      tags: [Articles]
+      summary: Get article by ID
+      description: >
+        Returns a single security article including its raw HTML content and
+        the cleaned plain-text version used for CVE extraction.
+      operationId: getArticleByID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the article
+          schema:
+            type: string
+            example: '01HXYZ1234ABCDEF'
+      responses:
+        '200':
+          description: The requested article
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Article'
+        '404':
+          description: No article found for the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: article not found
+        '500':
+          description: Database or internal error while fetching the article
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /repositories:
+    get:
+      tags: [Repositories]
+      summary: List watched repositories
+      description: >
+        Returns a summary list of all repositories being monitored by Parapet.
+        Each item contains only the identifying fields; use GET /repositories/{id}
+        for dependency and match details.
+      operationId: getRepositories
+      responses:
+        '200':
+          description: List of watched repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RepositoryListItem'
+        '500':
+          description: Database or internal error while fetching repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags: [Repositories]
+      summary: Add a repository to watch
+      description: >
+        Registers a new GitHub (or Bitbucket) repository for dependency and
+        vulnerability monitoring. Once added, the repository's dependency
+        manifest will be fetched during the next pipeline run.
+      operationId: createRepository
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRepositoryRequest'
+      responses:
+        '201':
+          description: Repository successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryDetail'
+        '400':
+          description: Request body is missing required fields or is malformed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_body:
+                  value:
+                    error: invalid request body
+                missing_fields:
+                  value:
+                    error: owner_name, repository_name and git_provider are required
+        '500':
+          description: Database or internal error while saving the repository
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /repositories/{id}:
+    get:
+      tags: [Repositories]
+      summary: Get repository details
+      description: >
+        Returns full details for a watched repository including its resolved
+        dependency list and any CVE matches found against those dependencies.
+      operationId: getRepositoryByID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the watched repository
+          schema:
+            type: string
+            example: '01HXYZ5678GHIJKL'
+      responses:
+        '200':
+          description: Repository detail with dependencies and vulnerability matches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryDetail'
+        '404':
+          description: No repository found for the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: repository not found
+        '500':
+          description: Database or internal error while fetching repository data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /vulnerabilities:
+    get:
+      tags: [Vulnerabilities]
+      summary: List all vulnerabilities
+      description: >
+        Returns all CVEs extracted from crawled security articles.
+        Each vulnerability includes the affected technologies (with PURL
+        and version range) and the source article IDs it was extracted from.
+      operationId: getVulnerabilities
+      responses:
+        '200':
+          description: List of extracted vulnerabilities
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Vulnerability'
+        '500':
+          description: Database or internal error while fetching vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pipeline/run:
+    post:
+      tags: [Pipeline]
+      summary: Trigger a pipeline run
+      description: >
+        Starts the full Parapet pipeline asynchronously. The pipeline runs
+        four sequential stages: (1) harvest new articles, (2) extract CVEs
+        using an LLM, (3) update repository dependencies from source control,
+        (4) match CVEs against dependencies. Returns immediately with 202;
+        poll GET /pipeline/status for results.
+      operationId: runPipeline
+      responses:
+        '202':
+          description: Pipeline run accepted and started in the background
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineStartedResponse'
+
+  /pipeline/status:
+    get:
+      tags: [Pipeline]
+      summary: Get last pipeline result
+      description: >
+        Returns the result of the most recent pipeline run, including counts
+        of articles harvested, vulnerabilities extracted, dependency changes,
+        and matches found. If no run has occurred yet, all counts are zero and
+        RanAt is the zero time ("0001-01-01T00:00:00Z").
+      operationId: getPipelineStatus
+      responses:
+        '200':
+          description: Most recent pipeline result (zero values if no run has occurred yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineResult'
+              examples:
+                result:
+                  summary: Pipeline has been run at least once
+                  value:
+                    ran_at: '2026-03-16T10:00:00Z'
+                    articles_harvested: 12
+                    vulnerabilities_extracted: 3
+                    deps_added: 5
+                    deps_removed: 1
+                    matches_found: 2
+                    errors: []
+                not_run:
+                  summary: No pipeline run has occurred yet
+                  value:
+                    ran_at: '0001-01-01T00:00:00Z'
+                    articles_harvested: 0
+                    vulnerabilities_extracted: 0
+                    deps_added: 0
+                    deps_removed: 0
+                    matches_found: 0
+                    errors: []
+
+components:
+  schemas:
+    # -------------------------------------------------------------------------
+    # Utility / shared
+    # -------------------------------------------------------------------------
+
+    HealthResponse:
+      type: object
+      description: Liveness indicator returned by GET /health
+      properties:
+        status:
+          type: string
+          example: ok
+      required: [status]
+
+    ErrorResponse:
+      type: object
+      description: Standard error envelope returned on 4xx and 5xx responses
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: article not found
+      required: [error]
+
+    # -------------------------------------------------------------------------
+    # Articles
+    # -------------------------------------------------------------------------
+
+    Article:
+      type: object
+      description: A security news article crawled from an external source.
+      properties:
+        id:
+          type: string
+          description: Unique article identifier (ULID)
+          example: '01HXYZ1234ABCDEF'
+        source_url:
+          type: string
+          format: uri
+          description: Original URL of the article
+          example: 'https://www.bleepingcomputer.com/news/security/critical-cve-in-openssl'
+        host_domain:
+          type: string
+          description: Domain of the source that published the article
+          enum: [hackernews.com, bleepingcomputer.com]
+          example: bleepingcomputer.com
+        published_at:
+          type: string
+          format: date-time
+          description: When the article was published by the source
+        headline:
+          type: string
+          description: Article headline / title
+          example: 'Critical CVE-2024-1234 Found in OpenSSL'
+        author:
+          type: string
+          description: Author of the article as listed by the source
+          example: 'Lawrence Abrams'
+        content_html:
+          type: string
+          description: Raw HTML body of the article as crawled
+        content_cleaned:
+          type: string
+          description: >
+            Plain-text version of the article body, stripped of HTML and used
+            as input for CVE extraction by the LLM
+        crawled_at:
+          type: string
+          format: date-time
+          description: Timestamp when Parapet crawled the article
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            Timestamp when the article was processed for CVE extraction.
+            Null if not yet processed.
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the last update to this record, if any
+      required:
+        - id
+        - source_url
+        - host_domain
+        - published_at
+        - headline
+        - author
+        - content_html
+        - content_cleaned
+        - crawled_at
+
+    # -------------------------------------------------------------------------
+    # Vulnerabilities
+    # -------------------------------------------------------------------------
+
+    AffectedTechnology:
+      type: object
+      description: A specific software component affected by a vulnerability
+      properties:
+        name:
+          type: string
+          description: Human-readable package or library name
+          example: openssl
+        purl:
+          type: string
+          description: >
+            Package URL (PURL) uniquely identifying the component,
+            e.g. pkg:golang/github.com/openssl/openssl
+          example: 'pkg:golang/github.com/openssl/openssl'
+        version_range:
+          type: string
+          description: >
+            Version range of the affected component, e.g. "<3.2.1" or ">=1.0.0,<1.1.2"
+          example: '<3.2.1'
+      required: [name, purl, version_range]
+
+    Vulnerability:
+      type: object
+      description: A CVE extracted from one or more security articles.
+      properties:
+        id:
+          type: string
+          description: Unique vulnerability identifier (ULID)
+          example: '01HXYZ9999VULNID'
+        cve:
+          type: string
+          description: CVE identifier as published by MITRE/NVD
+          example: 'CVE-2024-1234'
+        affected_technologies:
+          type: array
+          description: Software components known to be affected by this CVE
+          items:
+            $ref: '#/components/schemas/AffectedTechnology'
+        severity:
+          type: string
+          description: CVSS severity rating
+          enum: [CRITICAL, HIGH, MEDIUM, LOW]
+          example: CRITICAL
+        description:
+          type: string
+          description: Summary of the vulnerability as extracted from the source article
+          example: 'A buffer overflow in OpenSSL allows remote code execution.'
+        source_article_ids:
+          type: array
+          description: IDs of the articles from which this CVE was extracted
+          items:
+            type: string
+          example: ['01HXYZ1234ABCDEF']
+        published_at:
+          type: string
+          format: date-time
+          description: Date the CVE was publicly disclosed
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when this record was created in Parapet
+      required:
+        - id
+        - cve
+        - affected_technologies
+        - severity
+        - description
+        - source_article_ids
+        - published_at
+        - created_at
+
+    # -------------------------------------------------------------------------
+    # Repositories
+    # -------------------------------------------------------------------------
+
+    RepositoryListItem:
+      type: object
+      description: Summary view of a watched repository returned by GET /repositories
+      properties:
+        id:
+          type: string
+          description: Unique repository identifier (ULID)
+          example: '01HXYZ5678GHIJKL'
+        owner_name:
+          type: string
+          description: Repository owner / organisation name
+          example: openssl
+        repository_name:
+          type: string
+          description: Repository name
+          example: openssl
+        git_provider:
+          type: string
+          description: Git hosting provider
+          enum: ['Github.com', 'Bitbucket.com']
+          example: 'Github.com'
+      required: [id, owner_name, repository_name, git_provider]
+
+    RepositoryDependency:
+      type: object
+      description: A dependency detected in a watched repository's manifest.
+      properties:
+        id:
+          type: string
+          description: Unique dependency record identifier (ULID)
+          example: '01HXYZDDDDEPENDE'
+        repository_id:
+          type: string
+          description: ID of the repository this dependency belongs to
+          example: '01HXYZ5678GHIJKL'
+        name:
+          type: string
+          description: Package name
+          example: 'github.com/gorilla/mux'
+        version:
+          type: string
+          description: Pinned or resolved version
+          example: 'v1.8.0'
+        purl:
+          type: string
+          description: >
+            Package URL (PURL) used to cross-reference against vulnerability
+            affected technologies
+          example: 'pkg:golang/github.com/gorilla/mux@v1.8.0'
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when this dependency record was first created
+        last_matched_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            Timestamp of the last time this dependency was matched against a CVE.
+            Null if never matched.
+      required: [id, repository_id, name, version, purl, created_at]
+
+    Match:
+      type: object
+      description: A confirmed or potential match between a repository dependency and a CVE.
+      properties:
+        id:
+          type: string
+          description: Unique match identifier (ULID)
+          example: '01HXYZMATCHMATCH'
+        vulnerability_id:
+          type: string
+          description: ID of the matched vulnerability
+          example: '01HXYZ9999VULNID'
+        repository_id:
+          type: string
+          description: ID of the affected repository
+          example: '01HXYZ5678GHIJKL'
+        component_purl:
+          type: string
+          description: PURL of the vulnerable component as declared in the CVE
+          example: 'pkg:golang/github.com/gorilla/mux'
+        matched_component:
+          type: string
+          description: Name of the dependency in the repository that matched
+          example: 'github.com/gorilla/mux'
+        matched_version:
+          type: string
+          description: Version of the dependency that matched the vulnerable range
+          example: 'v1.8.0'
+        status:
+          type: string
+          description: Current status of the match
+          enum: [CONFIRMED, WARNING, RESOLVED]
+          example: CONFIRMED
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            Timestamp when the match was resolved (e.g. dependency was updated).
+            Null if still active.
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when this match was first detected
+      required:
+        - id
+        - vulnerability_id
+        - repository_id
+        - component_purl
+        - matched_component
+        - matched_version
+        - status
+        - created_at
+
+    RepositoryDetail:
+      type: object
+      description: >
+        Full detail view of a watched repository, including its resolved
+        dependencies and any CVE matches found against them.
+      properties:
+        id:
+          type: string
+          example: '01HXYZ5678GHIJKL'
+        owner_name:
+          type: string
+          example: openssl
+        repository_name:
+          type: string
+          example: openssl
+        git_provider:
+          type: string
+          enum: ['Github.com', 'Bitbucket.com']
+          example: 'Github.com'
+        last_fetched_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            When the repository's dependency manifest was last fetched.
+            Null if never fetched.
+        dependencies:
+          type: array
+          description: Dependencies detected in the repository's manifest
+          items:
+            $ref: '#/components/schemas/RepositoryDependency'
+        matches:
+          type: array
+          description: CVE matches found against this repository's dependencies
+          items:
+            $ref: '#/components/schemas/Match'
+      required:
+        [id, owner_name, repository_name, git_provider, dependencies, matches]
+
+    CreateRepositoryRequest:
+      type: object
+      description: Request body for registering a new repository to watch
+      properties:
+        owner_name:
+          type: string
+          description: Repository owner or organisation name on the git provider
+          example: openssl
+        repository_name:
+          type: string
+          description: Repository name on the git provider
+          example: openssl
+        git_provider:
+          type: string
+          description: Git hosting provider
+          enum: ['Github.com', 'Bitbucket.com']
+          example: 'Github.com'
+      required: [owner_name, repository_name, git_provider]
+
+    # -------------------------------------------------------------------------
+    # Pipeline
+    # -------------------------------------------------------------------------
+
+    PipelineStartedResponse:
+      type: object
+      description: Acknowledgement returned immediately when a pipeline run is triggered
+      properties:
+        status:
+          type: string
+          example: pipeline started
+      required: [status]
+
+    PipelineError:
+      type: object
+      description: An error that occurred during a specific pipeline stage
+      properties:
+        stage:
+          type: string
+          description: The pipeline stage in which the error occurred
+          enum: [harvest, extract, update_deps, match]
+          example: extract
+        error:
+          type: string
+          description: Human-readable error message
+          example: 'failed to fetch articles from bleepingcomputer.com'
+      required: [stage, error]
+
+    PipelineResult:
+      type: object
+      description: Summary of a completed pipeline run. All counts reflect work done in that single execution.
+      properties:
+        ran_at:
+          type: string
+          format: date-time
+          description: Timestamp when this pipeline run started
+        run_in_progress:
+          type: boolean
+          description: true if the pipeline is currently running
+        articles_harvested:
+          type: integer
+          description: Number of new articles crawled and stored during the harvest stage
+          example: 12
+        vulnerabilities_extracted:
+          type: integer
+          description: Number of CVEs extracted from articles during the extract stage
+          example: 3
+        deps_added:
+          type: integer
+          description: Number of dependency records added during the update-deps stage
+          example: 5
+        deps_removed:
+          type: integer
+          description: Number of dependency records removed during the update-deps stage
+          example: 1
+        matches_found:
+          type: integer
+          description: Number of new CVE-to-dependency matches detected during the match stage
+          example: 2
+        errors:
+          type: array
+          description: >
+            Errors encountered across all pipeline stages. An empty array
+            indicates a clean run.
+          items:
+            $ref: '#/components/schemas/PipelineError'
+      required:
+        - ran_at
+        - articles_harvested
+        - vulnerabilities_extracted
+        - deps_added
+        - deps_removed
+        - matches_found
+        - errors
