@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,19 +13,33 @@ type WatchedRepoRepository struct {
 	db *sql.DB
 }
 
+var ErrRepositoryAlreadyExists = errors.New("repository already exists")
+
 func NewWatchedRepoRepository(db *sql.DB) *WatchedRepoRepository {
 	return &WatchedRepoRepository{db: db}
 }
 
 func (r *WatchedRepoRepository) Save(repo domain.WatchedRepository) error {
-	_, err := r.db.Exec(`
+	result, err := r.db.Exec(`
 		INSERT INTO watched_repositories (id, git_provider, owner_name, repository_name, integrated_at)
 		VALUES ($1, $2, $3, $4, NOW())
-		ON CONFLICT (id) DO NOTHING
+		ON CONFLICT (git_provider, owner_name, repository_name) WHERE repository_name != '' AND owner_name != '' AND git_provider != ''
+		DO NOTHING
 	`, repo.ID, string(repo.GitProvider), repo.OwnerName, repo.RepositoryName)
+
 	if err != nil {
 		return fmt.Errorf("failed to save watched repository: %w", err)
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrRepositoryAlreadyExists
+	}
+
 	return nil
 }
 

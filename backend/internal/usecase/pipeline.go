@@ -31,6 +31,7 @@ type PipelineResult struct {
 	DepsAdded                int
 	DepsRemoved              int
 	MatchesFound             int
+	RunInProgress            bool
 	Errors                   []PipelineError
 }
 
@@ -57,23 +58,28 @@ func NewPipeline(harvest *HarvestArticlesUseCase, extract *ExtractVulnerabilitie
 }
 
 func (p *Pipeline) LastResult() *PipelineResult {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.lastResult
 }
 
 func (p *Pipeline) Run() {
-	result := PipelineResult{RanAt: time.Now()}
+	result := PipelineResult{RanAt: time.Now(), RunInProgress: true}
+	p.updateLastResult(&result)
 
 	harvestResult := p.harvest.Execute()
 	result.ArticlesHarvested = harvestResult.ArticlesHarvested
 	for _, err := range harvestResult.Errors {
 		result.Errors = append(result.Errors, PipelineError{Stage: StageHarvest, Err: err})
 	}
+	p.updateLastResult(&result)
 
 	extractResult := p.extract.Execute()
 	result.VulnerabilitiesExtracted = extractResult.VulnerabilitiesExtracted
 	for _, err := range extractResult.Errors {
 		result.Errors = append(result.Errors, PipelineError{Stage: StageExtract, Err: err})
 	}
+	p.updateLastResult(&result)
 
 	updateDepsResult := p.updateDeps.Execute()
 	result.DepsAdded = updateDepsResult.DepsAdded
@@ -81,16 +87,15 @@ func (p *Pipeline) Run() {
 	for _, err := range updateDepsResult.Errors {
 		result.Errors = append(result.Errors, PipelineError{Stage: StageUpdateDeps, Err: err})
 	}
+	p.updateLastResult(&result)
 
 	matchResult := p.match.Execute()
 	result.MatchesFound = matchResult.MatchesFound
 	for _, err := range matchResult.Errors {
 		result.Errors = append(result.Errors, PipelineError{Stage: StageMatch, Err: err})
 	}
-
-	p.mu.Lock()
-	p.lastResult = &result
-	p.mu.Unlock()
+	result.RunInProgress = false
+	p.updateLastResult(&result)
 
 	slog.Info("pipeline run complete",
 		"articles_harvested", result.ArticlesHarvested,
@@ -100,4 +105,10 @@ func (p *Pipeline) Run() {
 		"matches_found", result.MatchesFound,
 		"total_errors", len(result.Errors),
 	)
+}
+
+func (p *Pipeline) updateLastResult(result *PipelineResult) {
+	p.mu.Lock()
+	p.lastResult = result
+	p.mu.Unlock()
 }
