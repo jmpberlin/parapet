@@ -61,7 +61,7 @@ function Landing() {
           <p className='landing__body'>
             But soon I realised, that everytime I read about a vulnerability I
             tried to remember if I was using it in some project I was working
-            on. Or if we were on that specific affected version. And how easily
+            on. Or if we were using that specific affected version. And how easily
             we could patch if we needed to.
           </p>
 
@@ -92,7 +92,7 @@ function Landing() {
 
           <p className='landing__body'>
             The backend is written in Go with a clean architecture approach in
-            mind— domain, usecase, adapter, repository layes. Each layer
+            mind— domain, usecase, adapter, repository layers. Each layer
             communicates through interfaces, making it straightforward to swap
             scrapers, LLM providers, or data sources without touching business
             logic. PostgreSQL handles persistence, goose manages migrations, and

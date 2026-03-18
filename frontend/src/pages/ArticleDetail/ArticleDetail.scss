@@ -1,0 +1,190 @@
+@import '../../styles/variables.scss';
+
+.article-detail {
+  padding: 1.5rem 1.25rem;
+
+  @media (min-width: $tablet-min) {
+    padding: 2rem 3rem;
+  }
+  @media (min-width: $desktop-min) {
+    padding: 2.5rem 4rem;
+  }
+
+  &__back {
+    display: inline-block;
+    font-size: 0.8rem;
+    color: $secondary-color;
+    opacity: 0.55;
+    margin-bottom: 1.5rem;
+    text-decoration: none;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+
+  &__layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: start;
+
+    @media (min-width: $desktop-min) {
+      grid-template-columns: 1fr 340px;
+      gap: 2rem;
+    }
+  }
+
+  &__card {
+    background: white;
+    border-radius: 4px;
+    filter: drop-shadow(-7px 7px 1px rgba(0, 0, 0, 0.06));
+    padding: 1.75rem 2rem;
+  }
+
+  &__meta {
+    font-size: 0.75rem;
+    color: $secondary-color;
+    opacity: 0.45;
+    margin-bottom: 0.5rem;
+    text-transform: lowercase;
+  }
+
+  &__headline {
+    color: $secondary-color;
+    margin-bottom: 1rem;
+  }
+
+  &__source {
+    display: inline-block;
+    font-size: 0.8rem;
+    color: $secondary-color;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.3);
+    padding-bottom: 2px;
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__divider {
+    width: 2rem;
+    height: 1px;
+    background: $secondary-color;
+    opacity: 0.2;
+    margin: 1.5rem 0;
+  }
+
+  &__body {
+    font-size: 0.875rem;
+    line-height: 1.75;
+    color: $secondary-color;
+    opacity: 0.85;
+    white-space: pre-wrap;
+    margin: 0;
+  }
+
+  // Vulnerabilities card
+  &__empty {
+    font-size: 0.85rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    margin: 0;
+  }
+
+  &__vuln-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  &__vuln-item {
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.1);
+
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+  }
+
+  &__vuln-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  &__cve {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: $secondary-color;
+    font-family: 'Courier New', monospace;
+  }
+
+  &__severity {
+    font-size: 0.62rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.45rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+
+    &--critical {
+      background: rgba(180, 40, 40, 0.12);
+      color: #b42828;
+    }
+    &--high {
+      background: rgba(200, 90, 0, 0.1);
+      color: #c85a00;
+    }
+    &--medium {
+      background: rgba(200, 150, 0, 0.1);
+      color: #c89600;
+    }
+    &--low {
+      background: rgba(45, 113, 65, 0.1);
+      color: $secondary-color;
+    }
+  }
+
+  &__vuln-desc {
+    font-size: 0.78rem;
+    color: $secondary-color;
+    opacity: 0.7;
+    line-height: 1.5;
+    margin-bottom: 0.65rem;
+  }
+
+  &__tech-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__tech-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__tech-name {
+    font-size: 0.75rem;
+    color: $secondary-color;
+    opacity: 0.65;
+  }
+
+  &__tech-version {
+    font-size: 0.7rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    font-family: 'Courier New', monospace;
+    flex-shrink: 0;
+  }
+}

@@ -1,12 +1,233 @@
-.dashboard {
-  padding: 2rem;
+@import '../../styles/variables.scss';
 
-  h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
+.dashboard {
+  padding: 1.5rem 1.25rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+
+  @media (min-width: $tablet-min) {
+    padding: 2rem 3rem;
+  }
+  @media (min-width: $desktop-min) {
+    padding: 2.5rem 4rem;
   }
 
-  p {
-    color: #9ca3af;
+  &__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    align-items: start;
+
+    // ensure grid items can shrink below their content width
+    > * {
+      min-width: 0;
+    }
+
+    @media (min-width: $desktop-min) {
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+  }
+
+  // Watching card
+  &__repo-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  &__repo-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    color: $secondary-color;
+    opacity: 0.5;
+    font-weight: 400;
+    flex-shrink: 0;
+  }
+
+  &__value {
+    font-size: 0.85rem;
+    color: $secondary-color;
+    font-weight: 500;
+    text-align: right;
+    word-break: break-word;
+    min-width: 0;
+  }
+
+  // Shared
+  &__empty {
+    font-size: 0.85rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    margin: 0;
+  }
+
+  &__list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__date {
+    display: none;
+    font-size: 0.7rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    flex-shrink: 0;
+    white-space: nowrap;
+
+    @media (min-width: $tablet-min) {
+      display: block;
+    }
+  }
+
+  // Dependencies card
+  &__dep-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.08);
+    min-width: 0;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__dep-name {
+    font-size: 0.8rem;
+    color: $secondary-color;
+    font-weight: 400;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__dep-version {
+    font-size: 0.75rem;
+    color: $secondary-color;
+    opacity: 0.45;
+    flex-shrink: 0;
+    font-family: 'Courier New', monospace;
+  }
+
+  // Alerts card
+  &__match-item {
+    display: grid;
+    gap: 0.5rem 0.75rem;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.08);
+    min-width: 0;
+
+    // mobile: status + detail only, no date column
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'status detail';
+
+    @media (min-width: $tablet-min) {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: 'status detail date';
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__status {
+    grid-area: status;
+    font-size: 0.62rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.45rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+    align-self: start;
+
+    &--confirmed {
+      background: rgba(180, 40, 40, 0.1);
+      color: #b42828;
+    }
+    &--warning {
+      background: rgba(200, 120, 0, 0.1);
+      color: #c87800;
+    }
+    &--resolved {
+      background: rgba(45, 113, 65, 0.1);
+      color: $secondary-color;
+    }
+  }
+
+  &__match-detail {
+    grid-area: detail;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 0.1rem;
+  }
+
+  &__match-date {
+    grid-area: date;
+  }
+
+  &__match-name {
+    font-size: 0.8rem;
+    color: $secondary-color;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__match-version {
+    font-size: 0.72rem;
+    color: $secondary-color;
+    opacity: 0.45;
+    font-family: 'Courier New', monospace;
+  }
+
+  // Scanned card
+  &__article-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.08);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__article-link {
+    font-size: 0.82rem;
+    color: $secondary-color;
+    font-weight: 400;
+    line-height: 1.4;
+    text-decoration: none;
+    word-break: break-word;
+
+    &:hover {
+      opacity: 0.6;
+    }
+  }
+
+  &__article-meta {
+    font-size: 0.7rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    margin: 0;
   }
 }
