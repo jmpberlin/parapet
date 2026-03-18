@@ -1,0 +1,35 @@
+$mobile-max: 768px;
+$tablet-min: 769px;
+$tablet-max: 1024px;
+$desktop-min: 1025px;
+$monitor-min: 1920px;
+
+$primary-color: #f7f2fd;
+$secondary-color: #2d7141;
+$tertiary-color: #ebe6f0;
+$debug-color: chartreuse;
+
+.stroked {
+  color: transparent;
+  -webkit-text-stroke: 1px black;
+}
+
+.page-wrapper {
+  width: 97%;
+  margin: 0;
+  padding: 0;
+}
+
+.text-wrapper {
+  text-align: justify;
+  padding: 1.5rem;
+  width: 100%;
+  min-width: 0;
+  @media (min-width: $desktop-min) {
+    padding-top: 0px;
+    padding: 0px;
+  }
+  @media (min-width: $tablet-min) {
+    padding: 0px;
+  }
+}
