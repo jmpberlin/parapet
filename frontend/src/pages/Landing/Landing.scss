@@ -1,33 +1,345 @@
+@import '../../styles/variables.scss';
+
 .landing {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   min-height: 100vh;
-  text-align: center;
-  gap: 1rem;
 
-  h1 {
-    font-size: 3rem;
-    font-weight: 700;
+  overflow: hidden;
+
+  &__section-label {
+    text-align: left;
   }
 
-  p {
-    font-size: 1.125rem;
-    color: #9ca3af;
+  &__content {
+    text-align: center;
+    padding: 2rem 1.5rem;
+    @media (min-width: $tablet-min) {
+      width: 90vw;
+      p {
+        font-size: 1.125rem;
+      }
+    }
+    @media (min-width: $desktop-min) {
+      width: 95vw;
+    }
+    @media (min-width: $monitor-min) {
+      width: 90vw;
+    }
+  }
+  &__divider {
+    width: 2rem;
+    height: 1px;
+    background: $secondary-color;
+    opacity: 0.25;
+    margin: 0 0 3rem 0;
   }
 
-  &__cta {
-    margin-top: 1rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    background: #3b82f6;
-    color: #fff;
-    font-weight: 500;
-    transition: background 0.15s;
+  &__body {
+    color: $secondary-color;
+    margin: 0 0 1.5rem 0;
+    opacity: 0.8;
+    text-align: justify;
+  }
+
+  &__links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  &__link {
+    color: $secondary-color;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.3);
+    padding-bottom: 2px;
 
     &:hover {
-      background: #2563eb;
+      opacity: 0.7;
+    }
+  }
+
+  &__hero {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.4rem 1.2rem 0;
+
+    @media (min-width: $tablet-min) {
+      padding: 1.4rem 3rem 0;
+    }
+    @media (min-width: $desktop-min) {
+      padding: 1rem 6rem 0;
+    }
+  }
+
+  &__flow {
+    flex: 1;
+    align-self: stretch;
+    position: relative;
+    overflow: hidden;
+  }
+
+  &__stream-dot {
+    position: absolute;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    @media (min-width: $tablet-min) {
+      width: 15px;
+      height: 15px;
+    }
+    border-radius: 50%;
+    background: $secondary-color;
+    opacity: 0;
+
+    &--1 {
+      top: 25%;
+      animation: stream-dot-top 1.2s 0s ease-in infinite;
+    }
+    &--2 {
+      top: 50%;
+      animation: stream-dot-mid 1.2s 0.9s ease-in infinite;
+    }
+    &--3 {
+      top: 75%;
+      animation: stream-dot-bot 1.2s 1.8s ease-in infinite;
+    }
+  }
+
+  @keyframes stream-dot-top {
+    0% {
+      transform: translateX(0) translateY(0);
+      opacity: 0;
+    }
+    6% {
+      opacity: 1;
+    }
+    82% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(-100vw) translateY(160px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes stream-dot-mid {
+    0% {
+      transform: translateX(0);
+      opacity: 0;
+    }
+    6% {
+      opacity: 1;
+    }
+    82% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(-100vw);
+      opacity: 0;
+    }
+  }
+
+  @keyframes stream-dot-bot {
+    0% {
+      transform: translateX(0) translateY(0);
+      opacity: 0;
+    }
+    6% {
+      opacity: 1;
+    }
+    82% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(-100vw) translateY(-160px);
+      opacity: 0;
+    }
+  }
+
+  &__sources {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: 4px;
+    filter: drop-shadow(-7px 7px 1px rgba(0, 0, 0, 0.06));
+
+    flex-shrink: 0;
+
+    @media (min-width: $desktop-min) {
+      gap: 2rem;
+      padding: 2rem 2.5rem;
+    }
+  }
+
+  &__source-logo {
+    width: 5.5rem;
+    height: auto;
+    object-fit: contain;
+    display: block;
+
+    @media (min-width: $tablet-min) {
+      width: 13rem;
+    }
+    @media (min-width: $desktop-min) {
+      width: 16rem;
+    }
+  }
+
+  &__mac-wrapper {
+    position: relative;
+    flex-shrink: 0;
+    width: 48vw;
+
+    @media (min-width: $tablet-min) {
+      width: 45vw;
+    }
+    @media (min-width: $desktop-min) {
+      width: 35vw;
+    }
+  }
+
+  &__mac {
+    width: 100%;
+    height: auto;
+    display: block;
+    pointer-events: none;
+    filter: drop-shadow(-15px 25px 15px rgba(0, 0, 0, 0.2));
+    @media (min-width: $tablet-min) {
+      width: 80%;
+    }
+    @media (min-width: $desktop-min) {
+      width: 85%;
+    }
+  }
+
+  &__screen-text {
+    position: absolute;
+    top: 17%;
+    left: 48%;
+    width: 48%;
+    height: 38%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    transform: perspective(800px) rotateY(-10deg) rotateZ(-1deg);
+    transform-origin: right center;
+    pointer-events: none;
+
+    span {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.3rem;
+      color: #33ff33;
+      line-height: 2.6;
+      text-shadow: 0 0 4px rgba(51, 255, 51, 0.6);
+      display: block;
+    }
+
+    @media (min-width: $tablet-min) {
+      top: 16%;
+      left: 35%;
+      span {
+        font-size: 0.7rem;
+      }
+    }
+    @media (min-width: $desktop-min) {
+      left: 38%;
+      top: 15%;
+      span {
+        font-size: 1rem;
+      }
+    }
+    @media (min-width: $monitor-min) {
+      top: 20%;
+      left: 38%;
+      span {
+        font-size: 1.3rem;
+      }
+    }
+  }
+
+  &__typing-dot {
+    display: inline !important;
+    opacity: 0;
+
+    &--1 {
+      animation: dot1 2.5s infinite;
+    }
+    &--2 {
+      animation: dot2 2.5s infinite;
+    }
+    &--3 {
+      animation: dot3 2.5s infinite;
+    }
+  }
+
+  @keyframes dot1 {
+    0% {
+      opacity: 0;
+    }
+    2% {
+      opacity: 1;
+    }
+    43% {
+      opacity: 1;
+    }
+    44% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dot2 {
+    0% {
+      opacity: 0;
+    }
+    13% {
+      opacity: 0;
+    }
+    14% {
+      opacity: 1;
+    }
+    43% {
+      opacity: 1;
+    }
+    44% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes dot3 {
+    0% {
+      opacity: 0;
+    }
+    26% {
+      opacity: 0;
+    }
+    27% {
+      opacity: 1;
+    }
+    43% {
+      opacity: 1;
+    }
+    44% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 0;
     }
   }
 }

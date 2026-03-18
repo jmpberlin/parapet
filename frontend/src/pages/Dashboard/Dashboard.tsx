@@ -1,7 +1,7 @@
 import { useRepository } from '../../hooks/useRepositories';
 import './Dashboard.scss';
 
-const REPO_ID = 'xxxxxxxx';
+const REPO_ID = 'd29eb91f-8759-4d22-8563-043171f8daa2';
 
 function Dashboard() {
   const { data: repo, isLoading, error } = useRepository(REPO_ID);
