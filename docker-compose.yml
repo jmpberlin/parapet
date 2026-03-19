@@ -27,7 +27,7 @@ services:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
     ports:
-      - '${BACKEND_HOST_PORT}:${BACKEND_PORT}'
+      - '${BACKEND_HOST}:${BACKEND_HOST_PORT}:${BACKEND_PORT}'
     depends_on:
       - postgres
     networks:

@@ -10,6 +10,7 @@ import (
 type PipelineRunner interface {
 	Run()
 	LastResult() *usecase.PipelineResult
+	IsRunning() bool
 }
 
 type pipelineErrorResponse struct {
@@ -50,6 +51,11 @@ func toPipelineResultResponse(r usecase.PipelineResult) pipelineResultResponse {
 
 func PipelineRunHandler(pipeline PipelineRunner) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if pipeline.IsRunning() {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"error": "pipeline already running"}`))
+			return
+		}
 		go pipeline.Run()
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte(`{"status": "pipeline started"}`))

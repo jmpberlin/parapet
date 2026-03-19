@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import './Landing.scss';
-import macintosh from '../../assets/images/macintosh_v2.png';
+import macintosh from '../../assets/images/macintosh_v2.webp';
 import nistLogo from '../../assets/images/nist_logo_v1.png';
 import hackerNewsLogo from '../../assets/images/the_hacker_news_logo_v1.jpg';
 import bleepingComputerLogo from '../../assets/images/bleeping_computer_logo_v1.jpg';
