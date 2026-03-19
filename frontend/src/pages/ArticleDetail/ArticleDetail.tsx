@@ -27,10 +27,10 @@ function ArticleDetail() {
 
   return (
     <div className='article-detail'>
-      <Link to='/dashboard' className='article-detail__back'>← Back</Link>
+      <Link to='/articles' className='article-detail__back'>← Back</Link>
       <div className='article-detail__layout'>
 
-        <div className='article-detail__card'>
+        <DashboardCard>
           <p className='article-detail__meta'>
             {article.host_domain}
             {article.author ? ` · ${article.author}` : ''}
@@ -47,7 +47,7 @@ function ArticleDetail() {
           </a>
           <div className='article-detail__divider' />
           <p className='article-detail__body'>{article.content_cleaned}</p>
-        </div>
+        </DashboardCard>
 
         <DashboardCard title='Extracted vulnerabilities' count={vulns.length}>
           {vulns.length === 0 ? (

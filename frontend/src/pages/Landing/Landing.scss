@@ -6,78 +6,29 @@
   flex-direction: column;
   align-items: center;
   min-height: 100vh;
-
   overflow: hidden;
 
-  &__section-label {
-    text-align: left;
-  }
+  &__hero {
+    &.dashboard-card {
+      margin-bottom: 1.5rem;
+      padding: 1.25rem 0 1.25rem 0.4rem;
 
-  &__content {
-    text-align: center;
-    padding: 2rem 1.5rem;
-    @media (min-width: $tablet-min) {
-      width: 90vw;
-      p {
-        font-size: 1.125rem;
+      @media (min-width: $tablet-min) {
+        padding: 1.5rem 2rem;
+      }
+      @media (min-width: $desktop-min) {
+        padding: 2rem 3rem;
+        margin-bottom: 2rem;
       }
     }
-    @media (min-width: $desktop-min) {
-      width: 95vw;
-    }
-    @media (min-width: $monitor-min) {
-      width: 90vw;
-    }
-  }
-  &__divider {
-    width: 2rem;
-    height: 1px;
-    background: $secondary-color;
-    opacity: 0.25;
-    margin: 0 0 3rem 0;
   }
 
-  &__body {
-    color: $secondary-color;
-    margin: 0 0 1.5rem 0;
-    opacity: 0.8;
-    text-align: justify;
-  }
-
-  &__links {
-    display: flex;
-    gap: 1.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-bottom: 2rem;
-  }
-
-  &__link {
-    color: $secondary-color;
-    text-decoration: none;
-    border-bottom: 1px solid rgba(45, 113, 65, 0.3);
-    padding-bottom: 2px;
-
-    &:hover {
-      opacity: 0.7;
-    }
-  }
-
-  &__hero {
-    width: 100%;
-    box-sizing: border-box;
+  &__hero-content {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 1.4rem 1.2rem 0;
-
-    @media (min-width: $tablet-min) {
-      padding: 1.4rem 3rem 0;
-    }
-    @media (min-width: $desktop-min) {
-      padding: 1rem 6rem 0;
-    }
+    width: 100%;
   }
 
   &__flow {
@@ -183,29 +134,29 @@
   }
 
   &__source-logo {
-    width: 5.5rem;
+    width: 4.5rem;
     height: auto;
     object-fit: contain;
     display: block;
 
     @media (min-width: $tablet-min) {
-      width: 13rem;
+      width: 10rem;
     }
     @media (min-width: $desktop-min) {
-      width: 16rem;
+      width: 12rem;
     }
   }
 
   &__mac-wrapper {
     position: relative;
     flex-shrink: 0;
-    width: 48vw;
+    width: 38vw;
 
     @media (min-width: $tablet-min) {
-      width: 45vw;
+      width: 32vw;
     }
     @media (min-width: $desktop-min) {
-      width: 35vw;
+      width: 28vw;
     }
   }
 
@@ -238,7 +189,7 @@
 
     span {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 0.3rem;
+      font-size: 0.4rem;
       color: #33ff33;
       line-height: 2.6;
       text-shadow: 0 0 4px rgba(51, 255, 51, 0.6);
@@ -247,9 +198,9 @@
 
     @media (min-width: $tablet-min) {
       top: 16%;
-      left: 35%;
+      left: 37%;
       span {
-        font-size: 0.7rem;
+        font-size: 0.6rem;
       }
     }
     @media (min-width: $desktop-min) {
@@ -340,6 +291,85 @@
     }
     100% {
       opacity: 0;
+    }
+  }
+
+  &__sections {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 2rem 1.25rem 3rem;
+
+    @media (min-width: $tablet-min) {
+      padding: 2.5rem 2rem 3.5rem;
+    }
+    @media (min-width: $desktop-min) {
+      padding: 3rem 2rem 4rem;
+    }
+  }
+
+  &__sections-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+
+    > * {
+      min-width: 0;
+    }
+
+    @media (min-width: $desktop-min) {
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+
+      // intro card spans both columns
+      > :first-child {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+
+  &__body {
+    color: $secondary-color;
+    opacity: 0.8;
+    text-align: justify;
+    margin-bottom: 1rem;
+
+    &--last {
+      margin-bottom: 0;
+    }
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2.5rem;
+  }
+
+  &__footer-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  &__footer-credit {
+    font-size: 0.78rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    margin: 0;
+  }
+
+  &__link {
+    font-size: 0.875rem;
+    color: $secondary-color;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.3);
+    padding-bottom: 2px;
+
+    &:hover {
+      opacity: 0.7;
     }
   }
 }

@@ -8,11 +8,12 @@
   flex-direction: row;
   justify-content: space-between;
   h2 {
+    color: $secondary-color;
     padding-top: 1.3rem;
     font-size: 1.8rem;
   }
   @media (min-width: $tablet-min) {
-    padding: 2rem;
+    padding: 2.4rem;
     padding-top: 0;
     h2 {
       font-size: 2.75rem;

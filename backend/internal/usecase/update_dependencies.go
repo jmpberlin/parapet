@@ -16,23 +16,23 @@ type UpdateDependenciesStageResult struct {
 }
 
 type UpdateDependenciesUseCase struct {
-	watchedRepoRepo WatchedRepoRepository
-	dependencyRepo  DependencyRepository
-	fetcher         DependencyFetcher
+	watchedRepositoriesRepo WatchedRepoRepository
+	dependencyRepo          DependencyRepository
+	fetcher                 DependencyFetcher
 }
 
-func NewUpdateDependenciesUseCase(watchedRepoRepo WatchedRepoRepository, dependencyRepo DependencyRepository, fetcher DependencyFetcher) *UpdateDependenciesUseCase {
+func NewUpdateDependenciesUseCase(watchedRepositoriesRepo WatchedRepoRepository, dependencyRepo DependencyRepository, fetcher DependencyFetcher) *UpdateDependenciesUseCase {
 	return &UpdateDependenciesUseCase{
-		watchedRepoRepo: watchedRepoRepo,
-		dependencyRepo:  dependencyRepo,
-		fetcher:         fetcher,
+		watchedRepositoriesRepo: watchedRepositoriesRepo,
+		dependencyRepo:          dependencyRepo,
+		fetcher:                 fetcher,
 	}
 }
 
 func (u *UpdateDependenciesUseCase) Execute() UpdateDependenciesStageResult {
 	result := UpdateDependenciesStageResult{}
 
-	repos, err := u.watchedRepoRepo.GetAll()
+	repos, err := u.watchedRepositoriesRepo.GetAll()
 	if err != nil {
 		slog.Error("failed to fetch watched repositories",
 			"stage", StageUpdateDeps,
@@ -151,7 +151,7 @@ func (u *UpdateDependenciesUseCase) persistDiff(repo domain.WatchedRepository, n
 }
 
 func (u *UpdateDependenciesUseCase) updateLastFetchedAt(repo domain.WatchedRepository) error {
-	if err := u.watchedRepoRepo.UpdateLastFetchedAt(repo.ID, time.Now()); err != nil {
+	if err := u.watchedRepositoriesRepo.UpdateLastFetchedAt(repo.ID, time.Now()); err != nil {
 		slog.Error("failed to update last_fetched_at",
 			"stage", StageUpdateDeps,
 			"repo", repo.RepositoryName,

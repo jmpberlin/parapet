@@ -1,6 +1,6 @@
 import './Header.scss';
 import { Link } from 'react-router-dom';
-import BurgerMenu from '../components/menus/BurgerMenu/BurgerMenu';
+import BurgerMenu from '../components/Menus/BurgerMenu/BurgerMenu';
 import logo from '../assets/images/parapet_logo_v1.png';
 
 function Header() {
