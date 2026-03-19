@@ -7,10 +7,7 @@
 *.dylib
 *.test
 *.out
-go.sum
 
-# Go workspace
-go.work.sum
 
 # Build output
 /dist/
