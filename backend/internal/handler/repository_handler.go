@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -177,6 +178,13 @@ func CreateRepositoryHandler(repo WatchedRepoRepository) http.HandlerFunc {
 			http.Error(w, `{"error": "owner_name, repository_name and git_provider are required"}`, http.StatusBadRequest)
 			return
 		}
+		if len(req.RepositoryName) > 40 || len(req.GitProvider) > 40 || len(req.OwnerName) > 40 {
+			http.Error(w, `{"error": "provided information too long"}`, http.StatusBadRequest)
+			return
+		}
+		req.RepositoryName = strings.TrimSpace(req.RepositoryName)
+		req.OwnerName = strings.TrimSpace(req.RepositoryName)
+		req.GitProvider = strings.TrimSpace(req.RepositoryName)
 
 		watched := domain.WatchedRepository{
 			ID:             domain.NewID(),
