@@ -3,6 +3,7 @@ package usecase
 import (
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -46,6 +47,7 @@ type Pipeline struct {
 	match      *MatchVulnerabilitiesUseCase
 	mu         sync.RWMutex
 	lastResult *PipelineResult
+	running    atomic.Bool
 }
 
 func NewPipeline(harvest *HarvestArticlesUseCase, extract *ExtractVulnerabilitiesUseCase, updateDeps *UpdateDependenciesUseCase, match *MatchVulnerabilitiesUseCase) *Pipeline {
@@ -64,6 +66,17 @@ func (p *Pipeline) LastResult() *PipelineResult {
 }
 
 func (p *Pipeline) Run() {
+	//atomic.CompareAndSwap()
+	//Read the current value
+	//Compare it to the first argument (false)
+	//If they match — swap it to the second argument (true) and return true
+	//If they don't match — do nothing and return false
+	if !p.running.CompareAndSwap(false, true) {
+		slog.Info("pipeline already running, skipping")
+		return
+	}
+	defer p.running.Store(false)
+
 	result := PipelineResult{RanAt: time.Now(), RunInProgress: true}
 	p.updateLastResult(&result)
 
@@ -111,4 +124,8 @@ func (p *Pipeline) updateLastResult(result *PipelineResult) {
 	p.mu.Lock()
 	p.lastResult = result
 	p.mu.Unlock()
+}
+
+func (p *Pipeline) IsRunning() bool {
+	return p.running.Load()
 }

@@ -22,7 +22,7 @@ function BurgerMenu() {
         <nav className='burger-menu__overlay'>
           <ul>
             <li>
-              <Link to='/dashboard' onClick={() => setIsOpen(false)}>
+              <Link to='/repositories' onClick={() => setIsOpen(false)}>
                 Repositories
               </Link>
             </li>

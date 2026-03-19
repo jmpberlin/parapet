@@ -1,6 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://192.168.2.156:8080';
-// const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://127.94.0.1:8080';
-// const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://10.5.0.2:8080';
+const BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+
 
 export class ApiError extends Error {
   status: number;

@@ -117,7 +117,6 @@
     color: #b42828;
   }
 
-  // Repo picker
   &__repo-item {
     display: flex;
     align-items: center;
@@ -204,7 +203,6 @@
     }
   }
 
-  // Watching card
   &__repo-info {
     display: flex;
     flex-direction: column;
@@ -235,7 +233,6 @@
     min-width: 0;
   }
 
-  // Shared
   &__empty {
     font-size: 0.85rem;
     color: $secondary-color;
@@ -262,7 +259,6 @@
     }
   }
 
-  // Dependencies card
   &__dep-item {
     display: flex;
     justify-content: space-between;
@@ -295,7 +291,6 @@
     font-family: 'Courier New', monospace;
   }
 
-  // Alerts card
   &__match-item {
     display: grid;
     gap: 0.5rem 0.75rem;
@@ -304,7 +299,6 @@
     border-bottom: 1px solid rgba(45, 113, 65, 0.08);
     min-width: 0;
 
-    // mobile: status + detail only, no date column
     grid-template-columns: auto 1fr;
     grid-template-areas: 'status detail';
 
@@ -371,7 +365,6 @@
     font-family: 'Courier New', monospace;
   }
 
-  // Scanned card
   &__article-item {
     display: flex;
     flex-direction: column;

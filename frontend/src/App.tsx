@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing/Landing';
-import Dashboard from './pages/Repositories/Repositories';
+import Repositories from './pages/Repositories/Repositories';
 import Articles from './pages/Articles/Articles';
 import ArticleDetail from './pages/ArticleDetail/ArticleDetail';
 import Vulnerabilities from './pages/Vulnerabilities/Vulnerabilities';
@@ -13,7 +13,7 @@ function App() {
       <Header></Header>
       <Routes>
         <Route path='/' element={<Landing />} />
-        <Route path='/dashboard' element={<Dashboard />} />
+        <Route path='/repositories' element={<Repositories />} />
         <Route path='/articles' element={<Articles />} />
         <Route path='/articles/:id' element={<ArticleDetail />} />
         <Route path='/vulnerabilities' element={<Vulnerabilities />} />

@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jmpberlin/nightwatch/backend/docs"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
@@ -136,10 +137,11 @@ func main() {
 	r.Use(corsMiddleware)
 
 	r.Get("/health", healthcheckHandler)
-	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("/docs/openapi.yaml")))
-	r.Get("/docs/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "openapi.yaml")
+	r.Get("/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		w.Write(docs.OpenAPISpec)
 	})
+	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("/openapi.yaml")))
 
 	r.Post("/pipeline/run", handler.PipelineRunHandler(pipeline))
 	r.Get("/pipeline/status", handler.PipelineStatusHandler(pipeline))
@@ -167,8 +169,7 @@ func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// TODO: set origin before deploy — replace * with https://parapet.digital
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Origin", "https://parapet.digital")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
