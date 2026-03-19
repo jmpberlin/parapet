@@ -137,13 +137,13 @@ function Landing() {
         <div className='landing__footer'>
           <div className='landing__footer-links'>
             <a
-              href='https://www.github.com/jmpberlin/nightwatch'
+              href='https://www.github.com/jmpberlin/parapet'
               className='landing__link'
               target='new'
             >
               View on GitHub
             </a>
-            <Link to='/dashboard' className='landing__link'>
+            <Link to='/repositories' className='landing__link'>
               Open the dashboard →
             </Link>
           </div>
