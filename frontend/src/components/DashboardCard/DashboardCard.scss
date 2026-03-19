@@ -1,0 +1,46 @@
+@import '../../styles/variables.scss';
+
+.dashboard-card {
+  background: $primary-color;
+  border: 1px solid $secondary-color;
+  border-radius: 4px;
+  box-shadow: -7px 7px 12px rgba(0, 0, 0, 0.12);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.15);
+  }
+
+  &__title {
+    font-family: 'Ranade', sans-serif;
+    font-weight: 500;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: $secondary-color;
+  }
+
+  &__count {
+    font-family: 'Ranade', sans-serif;
+    font-size: 0.7rem;
+    color: $secondary-color;
+    opacity: 0.4;
+  }
+
+  &__body {
+    &--scrollable {
+      overflow-y: auto;
+      max-height: 320px;
+    }
+  }
+}

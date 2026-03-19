@@ -1,0 +1,121 @@
+@import '../../styles/variables.scss';
+
+.vulnerabilities {
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  @media (min-width: $tablet-min) {
+    padding: 2rem 3rem;
+  }
+  @media (min-width: $desktop-min) {
+    padding: 2.5rem 4rem;
+  }
+
+  &__empty {
+    font-size: 0.85rem;
+    color: $secondary-color;
+    opacity: 0.4;
+    margin: 0;
+  }
+
+  &__list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid rgba(45, 113, 65, 0.08);
+    text-decoration: none;
+    border-radius: 3px;
+    border-left: 2px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      background: rgba(45, 113, 65, 0.04);
+      border-left-color: $secondary-color;
+
+      .vulnerabilities__arrow {
+        opacity: 0.7;
+        transform: translateX(3px);
+      }
+    }
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  &__cve {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: $secondary-color;
+    font-family: 'Courier New', monospace;
+  }
+
+  &__severity {
+    font-size: 0.62rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.45rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+
+    &--critical {
+      background: rgba(180, 40, 40, 0.12);
+      color: #b42828;
+    }
+    &--high {
+      background: rgba(200, 90, 0, 0.1);
+      color: #c85a00;
+    }
+    &--medium {
+      background: rgba(200, 150, 0, 0.1);
+      color: #c89600;
+    }
+    &--low {
+      background: rgba(45, 113, 65, 0.1);
+      color: $secondary-color;
+    }
+  }
+
+  &__desc {
+    font-size: 0.78rem;
+    color: $secondary-color;
+    opacity: 0.6;
+    line-height: 1.4;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__arrow {
+    font-size: 0.9rem;
+    color: $secondary-color;
+    opacity: 0.35;
+    flex-shrink: 0;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+}

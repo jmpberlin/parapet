@@ -22,18 +22,18 @@ function BurgerMenu() {
         <nav className='burger-menu__overlay'>
           <ul>
             <li>
-              <Link to='/' onClick={() => setIsOpen(false)}>
-                Home
-              </Link>
-            </li>
-            <li>
               <Link to='/dashboard' onClick={() => setIsOpen(false)}>
-                Dashboard
+                Repositories
               </Link>
             </li>
             <li>
-              <Link to='/detail/123' onClick={() => setIsOpen(false)}>
-                Details
+              <Link to='/articles' onClick={() => setIsOpen(false)}>
+                Articles
+              </Link>
+            </li>
+            <li>
+              <Link to='/vulnerabilities' onClick={() => setIsOpen(false)}>
+                Vulnerabilities
               </Link>
             </li>
           </ul>

@@ -1,7 +1,10 @@
 import { Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing/Landing';
-import Dashboard from './pages/Dashboard/Dashboard';
-import RepoDetail from './pages/RepoDetail/RepoDetail';
+import Dashboard from './pages/Repositories/Repositories';
+import Articles from './pages/Articles/Articles';
+import ArticleDetail from './pages/ArticleDetail/ArticleDetail';
+import Vulnerabilities from './pages/Vulnerabilities/Vulnerabilities';
+import VulnerabilityDetail from './pages/VulnerabilityDetail/VulnerabilityDetail';
 import Header from './Header/Header';
 
 function App() {
@@ -11,7 +14,10 @@ function App() {
       <Routes>
         <Route path='/' element={<Landing />} />
         <Route path='/dashboard' element={<Dashboard />} />
-        <Route path='/repos/:id' element={<RepoDetail />} />
+        <Route path='/articles' element={<Articles />} />
+        <Route path='/articles/:id' element={<ArticleDetail />} />
+        <Route path='/vulnerabilities' element={<Vulnerabilities />} />
+        <Route path='/vulnerabilities/:id' element={<VulnerabilityDetail />} />
       </Routes>
     </>
   );

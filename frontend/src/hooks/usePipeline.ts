@@ -5,7 +5,8 @@ export function usePipelineStatus() {
   return useQuery({
     queryKey: ['pipeline', 'status'],
     queryFn: getPipelineStatus,
-    refetchInterval: 10000, // poll every 10 seconds
+    refetchInterval: (query) =>
+      query.state.data?.run_in_progress ? 1000 : 10000,
   });
 }
 
