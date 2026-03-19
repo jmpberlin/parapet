@@ -183,8 +183,8 @@ func CreateRepositoryHandler(repo WatchedRepoRepository) http.HandlerFunc {
 			return
 		}
 		req.RepositoryName = strings.TrimSpace(req.RepositoryName)
-		req.OwnerName = strings.TrimSpace(req.RepositoryName)
-		req.GitProvider = strings.TrimSpace(req.RepositoryName)
+		req.OwnerName = strings.TrimSpace(req.OwnerName)
+		req.GitProvider = strings.TrimSpace(req.GitProvider)
 
 		watched := domain.WatchedRepository{
 			ID:             domain.NewID(),
