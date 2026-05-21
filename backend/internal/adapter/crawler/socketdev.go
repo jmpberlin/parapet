@@ -142,11 +142,16 @@ func (s *SocketDevScraper) fetchPostList(since time.Time) ([]socketPost, error) 
 	return filtered, nil
 }
 
+const fetchThrottleDelay = 500 * time.Millisecond
+
 func (s *SocketDevScraper) buildArticles(posts []socketPost) ([]domain.Article, ScraperErrors) {
 	var articles []domain.Article
 	var errs ScraperErrors
 
-	for _, post := range posts {
+	for i, post := range posts {
+		if i > 0 {
+			time.Sleep(fetchThrottleDelay)
+		}
 		articleURL := s.baseURL + "/blog/" + post.Slug
 		content, err := s.fetchArticleContent(articleURL)
 		if err != nil {
