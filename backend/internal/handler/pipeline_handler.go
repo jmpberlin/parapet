@@ -2,13 +2,16 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jmpberlin/nightwatch/backend/internal/usecase"
 )
 
+const maxLookbackDays = 30
+
 type PipelineRunner interface {
-	Run()
+	Run(customLookback time.Duration)
 	LastResult() *usecase.PipelineResult
 	IsRunning() bool
 }
@@ -56,7 +59,22 @@ func PipelineRunHandler(pipeline PipelineRunner) http.HandlerFunc {
 			w.Write([]byte(`{"error": "pipeline already running"}`))
 			return
 		}
-		go pipeline.Run()
+
+		var customLookback time.Duration
+		if raw := r.URL.Query().Get("days"); raw != "" {
+			days, err := strconv.Atoi(raw)
+			if err != nil || days < 1 {
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(`{"error": "days must be a positive integer"}`))
+				return
+			}
+			if days > maxLookbackDays {
+				days = maxLookbackDays
+			}
+			customLookback = time.Duration(days) * 24 * time.Hour
+		}
+
+		go pipeline.Run(customLookback)
 		w.WriteHeader(http.StatusAccepted)
 		w.Write([]byte(`{"status": "pipeline started"}`))
 	}

@@ -65,7 +65,7 @@ func (p *Pipeline) LastResult() *PipelineResult {
 	return p.lastResult
 }
 
-func (p *Pipeline) Run() {
+func (p *Pipeline) Run(customLookback time.Duration) {
 	//atomic.CompareAndSwap()
 	//Read the current value
 	//Compare it to the first argument (false)
@@ -80,7 +80,7 @@ func (p *Pipeline) Run() {
 	result := PipelineResult{RanAt: time.Now(), RunInProgress: true}
 	p.updateLastResult(&result)
 
-	harvestResult := p.harvest.Execute()
+	harvestResult := p.harvest.Execute(customLookback)
 	result.ArticlesHarvested = harvestResult.ArticlesHarvested
 	for _, err := range harvestResult.Errors {
 		result.Errors = append(result.Errors, PipelineError{Stage: StageHarvest, Err: err})

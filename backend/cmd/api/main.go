@@ -84,10 +84,10 @@ func startScheduler(pipeline *usecase.Pipeline) {
 	ticker := time.NewTicker(1 * time.Hour)
 	go func() {
 		slog.Info("running initial pipeline run")
-		pipeline.Run()
+		pipeline.Run(0)
 		for range ticker.C {
 			slog.Info("scheduled pipeline run starting")
-			pipeline.Run()
+			pipeline.Run(0)
 		}
 	}()
 }

@@ -15,19 +15,23 @@ type HarvestResult struct {
 type HarvestArticlesUseCase struct {
 	articleRepo         ArticleRepository
 	crawlerOrchestrator CrawlerOrchestrator
-	lookbackTime        time.Duration
+	defaultLookback     time.Duration
 }
 
-func NewHarvestArticlesUseCase(articleRepo ArticleRepository, crawlerOrchestrator CrawlerOrchestrator, lookbackTime time.Duration) *HarvestArticlesUseCase {
+func NewHarvestArticlesUseCase(articleRepo ArticleRepository, crawlerOrchestrator CrawlerOrchestrator, defaultLookback time.Duration) *HarvestArticlesUseCase {
 	return &HarvestArticlesUseCase{
 		articleRepo:         articleRepo,
 		crawlerOrchestrator: crawlerOrchestrator,
-		lookbackTime:        lookbackTime,
+		defaultLookback:     defaultLookback,
 	}
 }
 
-func (h *HarvestArticlesUseCase) Execute() HarvestResult {
-	since := time.Now().Add(-h.lookbackTime)
+func (h *HarvestArticlesUseCase) Execute(customLookback time.Duration) HarvestResult {
+	lookback := h.defaultLookback
+	if customLookback > 0 {
+		lookback = customLookback
+	}
+	since := time.Now().Add(-lookback)
 	result := HarvestResult{}
 	articles, errs := h.crawlerOrchestrator.FetchArticles(since)
 	for _, err := range errs {
