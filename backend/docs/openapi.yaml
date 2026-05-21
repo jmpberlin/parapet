@@ -262,6 +262,19 @@ paths:
         (4) match CVEs against dependencies. Returns immediately with 202;
         poll GET /pipeline/status for results.
       operationId: runPipeline
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: >
+            Number of days to look back when harvesting articles. Defaults to 2
+            days if omitted. Capped at 30 — any value above 30 is silently
+            reduced to 30. Must be a positive integer.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 30
+            example: 7
       responses:
         '202':
           description: Pipeline run accepted and started in the background
@@ -269,6 +282,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PipelineStartedResponse'
+        '400':
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: days must be a positive integer
 
   /pipeline/status:
     get:
