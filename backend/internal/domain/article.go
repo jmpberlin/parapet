@@ -7,6 +7,7 @@ type HostDomain string
 const (
 	HackerNews       HostDomain = "hackernews.com"
 	BleepingComputer HostDomain = "bleepingcomputer.com"
+	SocketDev        HostDomain = "socket.dev"
 )
 
 type Article struct {

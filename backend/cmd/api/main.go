@@ -114,7 +114,8 @@ func main() {
 
 	// adapters
 	bcScraper := crawler.NewBCScraper()
-	crawlerOrchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{bcScraper})
+	socketDevScraper := crawler.NewSocketDevScraper()
+	crawlerOrchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{bcScraper, socketDevScraper})
 	claudeClient := claude.NewClaudeClient(getEnv("CLAUDE_API_KEY", ""))
 	githubClient := github.NewGithubClient(getEnv("GITHUB_TOKEN", ""))
 
