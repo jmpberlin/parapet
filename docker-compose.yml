@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: postgres-db
+    container_name: parapet-postgres-db
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -14,7 +14,7 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: backend
+    container_name: parapet-backend
     environment:
       - PORT=${BACKEND_PORT}
       - POSTGRES_HOST=postgres
