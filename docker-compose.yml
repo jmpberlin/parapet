@@ -32,9 +32,55 @@ services:
       - app-network
     restart: unless-stopped
 
+  loki:
+    image: grafana/loki:2.9.0
+    restart: unless-stopped
+    volumes:
+      - loki-data:/loki
+      - ./loki-config.yaml:/etc/loki/loki-config.yaml
+    command: -config.file=/etc/loki/loki-config.yaml
+    networks:
+      - observability-network
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    restart: unless-stopped
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+      - promtail-positions:/var/promtail
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - observability-network
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SERVER_ROOT_URL=https://grafana.parapet.digital
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    depends_on:
+      - loki
+    networks:
+      - observability-network
+
 networks:
   app-network:
+    driver: bridge
+  observability-network:
     driver: bridge
 
 volumes:
   postgres-data:
+  loki-data:
+  grafana-data:
+  promtail-positions:
