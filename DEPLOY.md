@@ -73,8 +73,9 @@ systemctl status caddy  # verify: active (running)
 Create A records at your DNS provider:
 
 ```
-Type: A  Name: @    Value: [SERVER-IP]  TTL: 300
-Type: A  Name: www  Value: [SERVER-IP]  TTL: 300
+Type: A  Name: @       Value: [SERVER-IP]  TTL: 300
+Type: A  Name: www     Value: [SERVER-IP]  TTL: 300
+Type: A  Name: grafana Value: [SERVER-IP]  TTL: 300
 ```
 
 Verify propagation:
@@ -161,6 +162,10 @@ parapet.digital {
 www.parapet.digital {
     redir https://parapet.digital{uri} permanent
 }
+
+grafana.parapet.digital {
+    reverse_proxy localhost:3000
+}
 ```
 
 DNS must be resolving to the server before Caddy can obtain a TLS cert.
@@ -187,7 +192,30 @@ Pipeline on push to `main`:
 
 ---
 
-## 13. Verify
+## 13. Observability
+
+Grafana is available at https://grafana.parapet.digital
+Username: admin
+Password: set via GRAFANA_PASSWORD in .env on the server
+
+**Adding Loki as data source in Grafana (first time only):**
+1. Go to https://grafana.parapet.digital
+2. Left sidebar → Connections → Data sources → Add data source
+3. Choose Loki
+4. URL: http://loki:3100
+5. Click Save & Test — should show green
+
+**Useful log queries:**
+```
+{container="parapet-backend-1"} |= "error"
+{container="parapet-backend-1"} |= "pipeline run complete"
+{container="parapet-backend-1"} |= "match"
+{container="parapet-backend-1"} |= "socket"
+```
+
+---
+
+## 14. Verify
 
 ```bash
 curl https://parapet.digital/api/health
