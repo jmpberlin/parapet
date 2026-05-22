@@ -11,6 +11,7 @@ import (
 type NormalizedIdentifier struct {
 	RawInput    string
 	Ecosystem   string
+	Namespace   string
 	PackageName string
 	Version     string
 	Words       []string
@@ -44,7 +45,7 @@ func Normalize(purl, name string) NormalizedIdentifier {
 		return NormalizedIdentifier{RawInput: rawInput}
 	}
 
-	ecosystem, packageName, version, purlParsed := parsePURL(decoded)
+	ecosystem, namespace, packageName, version, purlParsed := parsePURL(decoded)
 
 	if !purlParsed {
 		ecosystem = ecosystemFromString(name)
@@ -61,9 +62,10 @@ func Normalize(purl, name string) NormalizedIdentifier {
 	return NormalizedIdentifier{
 		RawInput:    rawInput,
 		Ecosystem:   strings.ToLower(ecosystem),
+		Namespace:   namespace,
 		PackageName: strings.ToLower(packageName),
 		Version:     strings.ToLower(cleanVersion(version)),
-		Words:       searchTerms(packageName, name),
+		Words:       searchTerms(packageName, namespace, name),
 	}
 }
 
@@ -98,7 +100,7 @@ func percentDecodePURL(purl string) string {
 	return purl
 }
 
-func parsePURL(decoded string) (ecosystem, packageName, version string, ok bool) {
+func parsePURL(decoded string) (ecosystem, namespace, packageName, version string, ok bool) {
 	if decoded == "" {
 		return
 	}
@@ -106,7 +108,17 @@ func parsePURL(decoded string) (ecosystem, packageName, version string, ok bool)
 	if err != nil {
 		return
 	}
-	return p.Type, packageNameFromPURL(p), p.Version, true
+	return p.Type, extractNamespace(p.Namespace), packageNameFromPURL(p), p.Version, true
+}
+
+func extractNamespace(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	raw = strings.TrimPrefix(raw, "@")
+	parts := strings.Split(raw, "/")
+	last := strings.TrimPrefix(parts[len(parts)-1], "@")
+	return strings.ToLower(last)
 }
 
 func packageNameFromPURL(p packageurl.PackageURL) string {
@@ -169,19 +181,21 @@ func cleanVersion(version string) string {
 
 func splitIntoTokens(s string) []string {
 	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
-		return unicode.IsSpace(r) || r == '/' || r == '-' || r == '_' || r == '.'
+		return unicode.IsSpace(r) || r == '/' || r == '-' || r == '_' || r == '.' || r == '@'
 	})
 }
 
-func searchTerms(packageName, name string) []string {
+func searchTerms(packageName, namespace, name string) []string {
 	seen := make(map[string]bool)
 	var terms []string
-	for _, tok := range append(splitIntoTokens(packageName), splitIntoTokens(name)...) {
-		if len(tok) < 3 || genericTokens[tok] || seen[tok] {
-			continue
+	for _, src := range []string{packageName, namespace, name} {
+		for _, tok := range splitIntoTokens(src) {
+			if len(tok) < 3 || genericTokens[tok] || seen[tok] {
+				continue
+			}
+			seen[tok] = true
+			terms = append(terms, tok)
 		}
-		seen[tok] = true
-		terms = append(terms, tok)
 	}
 	return terms
 }
