@@ -2,7 +2,10 @@
 
 Parapet monitors security news and alerts you when a vulnerability affects a library your project depends on.
 
-Parapet crawls streams of news like bleeping computer or hacker news, uses an LLM to extract vulnerabilities and the software components they affect, then cross-references those components against the dependency manifest of your GitHub repository.
+Parapet crawls streams of news like bleeping computer, hacker news or socket.dev/blog, uses an LLM to extract vulnerabilities and the software components they affect, then cross-references those components against the dependency manifest of your GitHub repository.
+
+Find the running version on [parapet.digital](https://parapet.digital)
+And the API specs on [parapet.digital/api/docs/index.html](https://parapet.digital/api/docs/index.html)
 
 ## How it works
 
