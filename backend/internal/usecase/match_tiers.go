@@ -98,8 +98,6 @@ func matchByPURL(vuln, dep NormalizedIdentifier) tierResult {
 
 // matchByNamespace matches when the vulnerability is a namespace wildcard (e.g.
 // pkg:npm/@tanstack/*) and the dependency belongs to that same namespace.
-// The signal is vuln.PackageName == vuln.Namespace: the package name was derived
-// from the namespace because the PURL had no specific package (name was "*").
 func matchByNamespace(vuln, dep NormalizedIdentifier) tierResult {
 	if vuln.Namespace == "" || dep.Namespace == "" {
 		return tierResult{}
