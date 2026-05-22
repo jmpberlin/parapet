@@ -8,9 +8,22 @@
     "dep_purl": "pkg:npm/%40tanstack/query-core@5.90.20",
     "dep_version": "5.90.20",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "WARNING",
     "expected_tier": "purl",
-    "note": "URL-encoded scoped package, version stripped for comparison"
+    "note": "URL-encoded scoped package, no version range — applyVersionCheck downgrades HIGH to WARNING"
+  },
+  {
+    "description": "TanStack wildcard should match",
+    "vuln_name": "TanStack packages",
+    "vuln_purl": "pkg:npm/%40tanstack/*",
+    "vuln_version_range": ">5.80.0",
+    "dep_name": "@tanstack/query-core",
+    "dep_purl": "pkg:npm/%40tanstack/query-core@5.90.20",
+    "dep_version": "5.90.20",
+    "expected_match": true,
+    "expected_confidence": "CONFIRMED",
+    "expected_tier": "namespace",
+    "note": "scoped wildcard @tanstack/* matches any dep in the @tanstack namespace; 5.90.20 satisfies >5.80.0"
   },
   {
     "description": "TanStack wildcard purl — should match MEDIUM by normalized name",
@@ -21,9 +34,9 @@
     "dep_purl": "pkg:npm/%40tanstack/react-query@5.90.21",
     "dep_version": "5.90.21",
     "expected_match": true,
-    "expected_confidence": "MEDIUM",
-    "expected_tier": "normalized_name",
-    "note": "vuln purl is malformed wildcard, fall back to name matching on tanstack"
+    "expected_confidence": "LOW",
+    "expected_tier": "word_token",
+    "note": "malformed PURL gives generic packageName 'packages', falls through to word_token on 'tanstack'"
   },
   {
     "description": "TanStack plain name no purl — should match LOW by word token",
@@ -47,9 +60,9 @@
     "dep_purl": "pkg:npm/react@19.2.4",
     "dep_version": "19.2.4",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "WARNING",
     "expected_tier": "purl",
-    "note": "exact npm purl match after version strip"
+    "note": "exact npm purl match, no version range — cannot confirm affected"
   },
   {
     "description": "react-is should NOT match react vulnerability",
@@ -82,9 +95,9 @@
     "dep_purl": "pkg:golang/golang.org/x/net@v0.50.0",
     "dep_version": "v0.50.0",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "LOW",
     "expected_tier": "purl",
-    "note": "Go standard library package exact match"
+    "note": "dep v0.50.0 is outside vulnerable range < v0.38.0 — downgraded to LOW"
   },
   {
     "description": "golang.org/x/crypto exact PURL match with version range",
@@ -95,9 +108,9 @@
     "dep_purl": "pkg:golang/golang.org/x/crypto@v0.48.0",
     "dep_version": "v0.48.0",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "LOW",
     "expected_tier": "purl",
-    "note": "dep version v0.48.0 is outside vulnerable range so version check would downgrade or resolve"
+    "note": "dep v0.48.0 is outside vulnerable range < v0.35.0 — downgraded to LOW"
   },
   {
     "description": "Axios compromise — dep not present should not match",
@@ -143,9 +156,9 @@
     "dep_purl": "pkg:golang/github.com/docker/docker@v28.5.2%2Bincompatible",
     "dep_version": "v28.5.2+incompatible",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "LOW",
     "expected_tier": "purl",
-    "note": "+incompatible and URL-encoded %2B must be stripped before version comparison"
+    "note": "v28.5.2 is outside vulnerable range < v28.0.0 — downgraded to LOW"
   },
   {
     "description": "protobufjs PURL match with version range",
@@ -180,9 +193,9 @@
     "dep_purl": "pkg:npm/%40anthropic-ai/claude-code@1.0.0",
     "dep_version": "1.0.0",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "WARNING",
     "expected_tier": "purl",
-    "note": "URL-encoded @ in dep purl must decode to match non-encoded vuln purl"
+    "note": "URL-encoded @ in dep purl must decode to match non-encoded vuln purl, no version range — WARNING"
   },
   {
     "description": "Go pseudo-version should be handled in normalisation",
@@ -193,9 +206,9 @@
     "dep_purl": "pkg:golang/golang.org/x/tools@v0.21.1-0.20240508182429-e35e4ccd0d2d",
     "dep_version": "v0.21.1-0.20240508182429-e35e4ccd0d2d",
     "expected_match": true,
-    "expected_confidence": "HIGH",
+    "expected_confidence": "CONFIRMED",
     "expected_tier": "purl",
-    "note": "pseudo-version with commit hash must be normalised to v0.21.1 for semver comparison"
+    "note": "pseudo-version stripped to v0.21.1 which satisfies < v0.22.0 — confirmed affected"
   },
   {
     "description": "vm2 with real CVE and version range",

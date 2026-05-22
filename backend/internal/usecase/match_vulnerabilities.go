@@ -3,11 +3,9 @@ package usecase
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/jmpberlin/nightwatch/backend/internal/domain"
-	"github.com/package-url/packageurl-go"
 )
 
 const defaultVulnerabilityLookback = 365 * 24 * time.Hour
@@ -180,42 +178,21 @@ func findMatches(deps []domain.RepositoryDependency, vulns []domain.Vulnerabilit
 	var matches []domain.Match
 	for _, vuln := range vulns {
 		for _, dep := range deps {
-			match, ok := match(vuln, dep, repositoryID)
-			if ok {
-				matches = append(matches, match)
+			if m, ok := findMatch(vuln, dep, repositoryID); ok {
+				matches = append(matches, m)
 			}
 		}
 	}
 	return matches
 }
 
-func match(vuln domain.Vulnerability, dep domain.RepositoryDependency, repositoryID string) (domain.Match, bool) {
+func findMatch(vuln domain.Vulnerability, dep domain.RepositoryDependency, repositoryID string) (domain.Match, bool) {
 	for _, affected := range vuln.AffectedTechnologies {
-		if affected.PURL != "" && dep.PURL != "" {
-			if purlsMatch(affected.PURL, dep.PURL) {
-				status := confirmOrWarn(affected.VersionRange, dep.Version)
-				return buildMatch(vuln, dep, repositoryID, status), true
-			}
-			return domain.Match{}, false
-		}
-
-		if namesMatch(affected.Name, dep.Name) {
-			status := confirmOrWarn(affected.VersionRange, dep.Version)
-			return buildMatch(vuln, dep, repositoryID, status), true
+		if m, ok := matchAffected(vuln.ID, affected, dep, repositoryID); ok {
+			return m, true
 		}
 	}
 	return domain.Match{}, false
-}
-
-func buildMatch(vuln domain.Vulnerability, dep domain.RepositoryDependency, repositoryID string, status domain.MatchStatus) domain.Match {
-	return domain.Match{
-		VulnerabilityID:  vuln.ID,
-		RepositoryID:     repositoryID,
-		MatchedComponent: dep.Name,
-		MatchedVersion:   dep.Version,
-		ComponentPURL:    dep.PURL,
-		Status:           status,
-	}
 }
 
 func (m *MatchVulnerabilitiesUseCase) persistMatches(repo domain.WatchedRepository, matches []domain.Match) (int, []error) {
@@ -256,48 +233,3 @@ func (m *MatchVulnerabilitiesUseCase) updateLastMatched(deps []domain.Repository
 	return errs
 }
 
-func purlsMatch(a, b string) bool {
-	return stripPURLVersion(a) == stripPURLVersion(b)
-}
-
-func stripPURLVersion(purl string) string {
-	if idx := strings.Index(purl, "@"); idx != -1 {
-		return purl[:idx]
-	}
-	return purl
-}
-
-func namesMatch(a, b string) bool {
-	nameA := extractPackageName(a)
-	nameB := extractPackageName(b)
-	ecosystemA := extractEcosystem(a)
-	ecosystemB := extractEcosystem(b)
-	if ecosystemA != "" && ecosystemB != "" && !strings.EqualFold(ecosystemA, ecosystemB) {
-		return false
-	}
-	return strings.EqualFold(nameA, nameB)
-}
-
-func extractPackageName(name string) string {
-	p, err := packageurl.FromString(name)
-	if err != nil {
-		return name
-	}
-	return p.Name
-}
-
-func extractEcosystem(name string) string {
-	p, err := packageurl.FromString(name)
-	if err != nil {
-		return ""
-	}
-	return p.Type
-}
-
-// TODO: version matching needs to be added
-func confirmOrWarn(versionRange, version string) domain.MatchStatus {
-	if versionRange == "" || version == "" {
-		return domain.MatchStatusWarning
-	}
-	return domain.MatchStatusConfirmed
-}

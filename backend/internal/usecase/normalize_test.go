@@ -99,3 +99,32 @@ func TestNormalize_UnscopedWildcardRejected(t *testing.T) {
 	assert.Empty(t, n.Ecosystem)
 	assert.Empty(t, n.PackageName)
 }
+
+func TestNormalize_ScopedNpmNamespace(t *testing.T) {
+	n := Normalize("pkg:npm/%40tanstack/query-core@5.90.20", "")
+	assert.Equal(t, "tanstack", n.Namespace)
+	assert.Equal(t, "query-core", n.PackageName)
+	assert.Contains(t, n.Words, "tanstack")
+	assert.Contains(t, n.Words, "query")
+	assert.NotContains(t, n.Words, "@tanstack")
+}
+
+func TestNormalize_GolangNamespace(t *testing.T) {
+	n := Normalize("pkg:golang/golang.org/x/net@v0.50.0", "")
+	assert.Equal(t, "x", n.Namespace)
+	assert.Equal(t, "net", n.PackageName)
+	assert.Contains(t, n.Words, "net")
+}
+
+func TestNormalize_BabelNamespace(t *testing.T) {
+	n := Normalize("pkg:npm/%40babel/core@7.29.0", "")
+	assert.Equal(t, "babel", n.Namespace)
+	assert.Equal(t, "core", n.PackageName)
+	assert.Contains(t, n.Words, "babel")
+}
+
+func TestNormalize_NoNamespace(t *testing.T) {
+	n := Normalize("pkg:npm/react@19.2.4", "")
+	assert.Equal(t, "", n.Namespace)
+	assert.Equal(t, "react", n.PackageName)
+}

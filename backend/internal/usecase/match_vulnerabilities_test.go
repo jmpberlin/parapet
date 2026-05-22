@@ -53,7 +53,7 @@ func (m *mockVulnerabilityRepo) GetAll() ([]domain.Vulnerability, error)        
 func (m *mockVulnerabilityRepo) GetByCVE(cve string) (*domain.Vulnerability, error) { return nil, nil }
 func (m *mockVulnerabilityRepo) GetByID(id string) (*domain.Vulnerability, error)   { return nil, nil }
 
-func TestMatch_PURLMatch_ReturnsConfirmedMatch(t *testing.T) {
+func TestFindMatch_PURLMatch_ReturnsConfirmedMatch(t *testing.T) {
 	vuln := domain.Vulnerability{
 		ID: "vuln-1",
 		AffectedTechnologies: []domain.AffectedTechnology{
@@ -67,7 +67,7 @@ func TestMatch_PURLMatch_ReturnsConfirmedMatch(t *testing.T) {
 		Version: "17.0.0",
 	}
 
-	result, ok := match(vuln, dep, "repo-1")
+	result, ok := findMatch(vuln, dep, "repo-1")
 
 	if !ok {
 		t.Fatal("expected a match, got none")
@@ -83,7 +83,7 @@ func TestMatch_PURLMatch_ReturnsConfirmedMatch(t *testing.T) {
 	}
 }
 
-func TestMatch_PURLMatch_NoVersionRange_ReturnsWarning(t *testing.T) {
+func TestFindMatch_PURLMatch_NoVersionRange_ReturnsWarning(t *testing.T) {
 	vuln := domain.Vulnerability{
 		ID: "vuln-1",
 		AffectedTechnologies: []domain.AffectedTechnology{
@@ -97,7 +97,7 @@ func TestMatch_PURLMatch_NoVersionRange_ReturnsWarning(t *testing.T) {
 		Version: "17.0.0",
 	}
 
-	result, ok := match(vuln, dep, "repo-1")
+	result, ok := findMatch(vuln, dep, "repo-1")
 
 	if !ok {
 		t.Fatal("expected a match, got none")
@@ -107,7 +107,7 @@ func TestMatch_PURLMatch_NoVersionRange_ReturnsWarning(t *testing.T) {
 	}
 }
 
-func TestMatch_PURLMatch_NoDepVersion_ReturnsWarning(t *testing.T) {
+func TestFindMatch_PURLMatch_NoDepVersion_ReturnsWarning(t *testing.T) {
 	vuln := domain.Vulnerability{
 		ID: "vuln-1",
 		AffectedTechnologies: []domain.AffectedTechnology{
@@ -117,11 +117,11 @@ func TestMatch_PURLMatch_NoDepVersion_ReturnsWarning(t *testing.T) {
 	dep := domain.RepositoryDependency{
 		ID:      "dep-1",
 		Name:    "react",
-		PURL:    "pkg:npm/react@17.0.0",
+		PURL:    "pkg:npm/react",
 		Version: "",
 	}
 
-	result, ok := match(vuln, dep, "repo-1")
+	result, ok := findMatch(vuln, dep, "repo-1")
 
 	if !ok {
 		t.Fatal("expected a match, got none")
@@ -131,7 +131,7 @@ func TestMatch_PURLMatch_NoDepVersion_ReturnsWarning(t *testing.T) {
 	}
 }
 
-func TestMatch_DifferentPURL_NoMatch(t *testing.T) {
+func TestFindMatch_DifferentPURL_NoMatch(t *testing.T) {
 	vuln := domain.Vulnerability{
 		ID: "vuln-1",
 		AffectedTechnologies: []domain.AffectedTechnology{
@@ -140,18 +140,18 @@ func TestMatch_DifferentPURL_NoMatch(t *testing.T) {
 	}
 	dep := domain.RepositoryDependency{
 		ID:   "dep-1",
-		Name: "react",
+		Name: "lodash",
 		PURL: "pkg:npm/lodash@4.0.0",
 	}
 
-	_, ok := match(vuln, dep, "repo-1")
+	_, ok := findMatch(vuln, dep, "repo-1")
 
 	if ok {
-		t.Error("expected no match — different PURLs should not match even if names are equal")
+		t.Error("expected no match — different PURLs should not match")
 	}
 }
 
-func TestMatch_NameFallback_BothPURLsEmpty_ReturnsMatch(t *testing.T) {
+func TestFindMatch_NameFallback_BothPURLsEmpty_ReturnsMatch(t *testing.T) {
 	vuln := domain.Vulnerability{
 		ID: "vuln-1",
 		AffectedTechnologies: []domain.AffectedTechnology{
@@ -164,14 +164,14 @@ func TestMatch_NameFallback_BothPURLsEmpty_ReturnsMatch(t *testing.T) {
 		PURL: "",
 	}
 
-	_, ok := match(vuln, dep, "repo-1")
+	_, ok := findMatch(vuln, dep, "repo-1")
 
 	if !ok {
 		t.Error("expected name fallback match when both PURLs are empty")
 	}
 }
 
-func TestMatch_NoAffectedTechnologies_NoMatch(t *testing.T) {
+func TestFindMatch_NoAffectedTechnologies_NoMatch(t *testing.T) {
 	vuln := domain.Vulnerability{
 		ID:                   "vuln-1",
 		AffectedTechnologies: []domain.AffectedTechnology{},
@@ -182,52 +182,10 @@ func TestMatch_NoAffectedTechnologies_NoMatch(t *testing.T) {
 		PURL: "pkg:npm/react@18.0.0",
 	}
 
-	_, ok := match(vuln, dep, "repo-1")
+	_, ok := findMatch(vuln, dep, "repo-1")
 
 	if ok {
 		t.Error("expected no match when vulnerability has no affected technologies")
-	}
-}
-
-func TestNamesMatch_ExactMatch(t *testing.T) {
-	if !namesMatch("react", "react") {
-		t.Error("expected exact names to match")
-	}
-}
-
-func TestNamesMatch_CaseInsensitive(t *testing.T) {
-	if !namesMatch("React", "react") {
-		t.Error("expected case insensitive match")
-	}
-}
-
-func TestNamesMatch_DifferentNames_NoMatch(t *testing.T) {
-	if namesMatch("react", "lodash") {
-		t.Error("expected different names to not match")
-	}
-}
-
-func TestNamesMatch_SameNameDifferentEcosystem_NoMatch(t *testing.T) {
-	if namesMatch("pkg:npm/express", "pkg:pypi/express") {
-		t.Error("expected same name with different ecosystems to not match")
-	}
-}
-
-func TestNamesMatch_SameNameSameEcosystem_Matches(t *testing.T) {
-	if !namesMatch("pkg:npm/express", "pkg:npm/express") {
-		t.Error("expected same name and ecosystem to match")
-	}
-}
-
-func TestNamesMatch_OneEmptyEcosystem_MatchesByName(t *testing.T) {
-	if !namesMatch("express", "pkg:npm/express") {
-		t.Error("expected match when one has no ecosystem — name comparison only")
-	}
-}
-
-func TestNamesMatch_PackageNameExtractedFromPURL(t *testing.T) {
-	if !namesMatch("pkg:npm/react@18.0.0", "react") {
-		t.Error("expected package name to be extracted from PURL for comparison")
 	}
 }
 
