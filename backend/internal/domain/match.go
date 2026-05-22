@@ -20,4 +20,8 @@ type Match struct {
 	Status           MatchStatus
 	ResolvedAt       *time.Time
 	CreatedAt        time.Time
+	Confidence       string
+	MatchedOn        string
+	VulnIdentifier   string
+	DepIdentifier    string
 }

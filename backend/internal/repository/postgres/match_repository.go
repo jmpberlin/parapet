@@ -17,11 +17,12 @@ func NewMatchRepository(db *sql.DB) *MatchRepository {
 
 func (r *MatchRepository) Save(match domain.Match) error {
 	_, err := r.db.Exec(`
-		INSERT INTO matches (id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+		INSERT INTO matches (id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12)
 		ON CONFLICT (id) DO NOTHING
 	`, match.ID, match.VulnerabilityID, match.RepositoryID, match.ComponentPURL,
-		match.MatchedComponent, match.MatchedVersion, match.Status, match.ResolvedAt)
+		match.MatchedComponent, match.MatchedVersion, match.Status, match.ResolvedAt,
+		match.Confidence, match.MatchedOn, match.VulnIdentifier, match.DepIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to save match: %w", err)
 	}
@@ -30,30 +31,30 @@ func (r *MatchRepository) Save(match domain.Match) error {
 
 func (r *MatchRepository) GetByRepositoryID(repoID string) ([]domain.Match, error) {
 	return r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at
+		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier
 		FROM matches WHERE repository_id = $1
 	`, repoID)
 }
 
 func (r *MatchRepository) GetByStatus(status domain.MatchStatus) ([]domain.Match, error) {
 	return r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at
+		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier
 		FROM matches WHERE status = $1
 	`, string(status))
 }
 
 func (r *MatchRepository) GetUnresolvedByRepositoryID(repoID string) ([]domain.Match, error) {
 	return r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at
+		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier
 		FROM matches WHERE repository_id = $1 AND status != 'RESOLVED'
 	`, repoID)
 }
 
 func (r *MatchRepository) UpdateStatus(id string, status domain.MatchStatus) error {
 	_, err := r.db.Exec(`
-		UPDATE matches SET status = $1, resolved_at = CASE WHEN $1 = 'RESOLVED' THEN NOW() ELSE NULL END
-		WHERE id = $2
-	`, string(status), id)
+		UPDATE matches SET status = $1, resolved_at = CASE WHEN $2 = 'RESOLVED' THEN NOW() ELSE NULL END
+		WHERE id = $3
+	`, string(status), string(status), id)
 	if err != nil {
 		return fmt.Errorf("failed to update match status: %w", err)
 	}
@@ -70,11 +71,17 @@ func (r *MatchRepository) queryMatches(query string, args ...any) ([]domain.Matc
 	var matches []domain.Match
 	for rows.Next() {
 		var m domain.Match
+		var confidence, matchedOn, vulnIdentifier, depIdentifier sql.NullString
 		err := rows.Scan(&m.ID, &m.VulnerabilityID, &m.RepositoryID, &m.ComponentPURL,
-			&m.MatchedComponent, &m.MatchedVersion, &m.Status, &m.ResolvedAt, &m.CreatedAt)
+			&m.MatchedComponent, &m.MatchedVersion, &m.Status, &m.ResolvedAt, &m.CreatedAt,
+			&confidence, &matchedOn, &vulnIdentifier, &depIdentifier)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan match: %w", err)
 		}
+		m.Confidence = confidence.String
+		m.MatchedOn = matchedOn.String
+		m.VulnIdentifier = vulnIdentifier.String
+		m.DepIdentifier = depIdentifier.String
 		matches = append(matches, m)
 	}
 	return matches, nil
