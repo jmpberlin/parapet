@@ -19,7 +19,7 @@ func (r *MatchRepository) Save(match domain.Match) error {
 	_, err := r.db.Exec(`
 		INSERT INTO matches (id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12)
-		ON CONFLICT (id) DO NOTHING
+		ON CONFLICT DO NOTHING
 	`, match.ID, match.VulnerabilityID, match.RepositoryID, match.ComponentPURL,
 		match.MatchedComponent, match.MatchedVersion, match.Status, match.ResolvedAt,
 		match.Confidence, match.MatchedOn, match.VulnIdentifier, match.DepIdentifier)
