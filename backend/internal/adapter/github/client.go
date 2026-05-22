@@ -50,9 +50,8 @@ func (g *GitHubClient) GetDependencies(owner, repo string) ([]domain.RepositoryD
 		return nil, err
 	}
 
-	// Skipping first package, it's the repository itself
 	var dependencies []domain.RepositoryDependency
-	for _, pkg := range sbom.Sbom.Packages[1:] {
+	for _, pkg := range sbom.Sbom.Packages {
 		dependencies = append(dependencies, domain.RepositoryDependency{
 			Name:    pkg.Name,
 			Version: pkg.Version,
