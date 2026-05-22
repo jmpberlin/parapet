@@ -226,6 +226,102 @@ func TestMatchRepository_GetUnresolvedByRepositoryID(t *testing.T) {
 	}
 }
 
+func TestMatchRepository_Save_DuplicateID_Ignored(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	m := newTestMatch(vulnID, repoID)
+	if err := repo.Save(m); err != nil {
+		t.Fatalf("failed to save original match: %s", err)
+	}
+
+	duplicate := m
+	duplicate.MatchedVersion = "9.9.9"
+	if err := repo.Save(duplicate); err != nil {
+		t.Fatalf("second save with same ID should not return an error: %s", err)
+	}
+
+	matches, err := repo.GetByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get matches: %s", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match after duplicate save, got %d", len(matches))
+	}
+	if matches[0].MatchedVersion != m.MatchedVersion {
+		t.Errorf("expected original version %s to be kept, got %s", m.MatchedVersion, matches[0].MatchedVersion)
+	}
+}
+
+func TestMatchRepository_Save_DuplicateVulnAndPURL_Ignored(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	first := newTestMatch(vulnID, repoID)
+	first.Status = domain.MatchStatusWarning
+	if err := repo.Save(first); err != nil {
+		t.Fatalf("failed to save first match: %s", err)
+	}
+
+	second := newTestMatch(vulnID, repoID)
+	second.ID = uuid.New().String()
+	second.Status = domain.MatchStatusConfirmed
+	if err := repo.Save(second); err != nil {
+		t.Fatalf("second save with same vuln+repo+purl should not return an error: %s", err)
+	}
+
+	matches, err := repo.GetByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get matches: %s", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match after duplicate vuln+purl save, got %d", len(matches))
+	}
+	if matches[0].ID != first.ID {
+		t.Errorf("expected first match to be kept, got ID %s", matches[0].ID)
+	}
+	if matches[0].Status != domain.MatchStatusWarning {
+		t.Errorf("expected original status WARNING to be kept, got %s", matches[0].Status)
+	}
+}
+
+func TestMatchRepository_Save_DuplicateVulnAndComponentNoPURL_Ignored(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	first := newTestMatch(vulnID, repoID)
+	first.ComponentPURL = ""
+	first.Status = domain.MatchStatusWarning
+	if err := repo.Save(first); err != nil {
+		t.Fatalf("failed to save first match: %s", err)
+	}
+
+	second := newTestMatch(vulnID, repoID)
+	second.ID = uuid.New().String()
+	second.ComponentPURL = ""
+	second.Status = domain.MatchStatusConfirmed
+	if err := repo.Save(second); err != nil {
+		t.Fatalf("second save with same vuln+repo+component (no purl) should not return an error: %s", err)
+	}
+
+	matches, err := repo.GetByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get matches: %s", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match after duplicate vuln+component save, got %d", len(matches))
+	}
+	if matches[0].ID != first.ID {
+		t.Errorf("expected first match to be kept, got ID %s", matches[0].ID)
+	}
+	if matches[0].Status != domain.MatchStatusWarning {
+		t.Errorf("expected original status WARNING to be kept, got %s", matches[0].Status)
+	}
+}
+
 func TestMatchRepository_UpdateStatus_ToResolved(t *testing.T) {
 	truncateMatches(t)
 	vulnID, repoID := seedMatchPrereqs(t)

@@ -142,7 +142,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/yaml")
 		w.Write(docs.OpenAPISpec)
 	})
-	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("/openapi.yaml")))
+	r.Get("/docs/*", httpSwagger.Handler(httpSwagger.URL("/api/openapi.yaml")))
 
 	r.Post("/pipeline/run", handler.PipelineRunHandler(pipeline))
 	r.Get("/pipeline/status", handler.PipelineStatusHandler(pipeline))
