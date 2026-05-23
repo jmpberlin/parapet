@@ -76,6 +76,7 @@ Create A records at your DNS provider:
 Type: A  Name: @       Value: [SERVER-IP]  TTL: 300
 Type: A  Name: www     Value: [SERVER-IP]  TTL: 300
 Type: A  Name: grafana Value: [SERVER-IP]  TTL: 300
+Type: A  Name: db      Value: [SERVER-IP]  TTL: 300
 ```
 
 Verify propagation:
@@ -212,6 +213,87 @@ Password: set via GRAFANA_PASSWORD in .env on the server
 {container="parapet-backend-1"} |= "match"
 {container="parapet-backend-1"} |= "socket"
 ```
+
+### Database UI (Adminer)
+
+Adminer is available at https://db.parapet.digital
+It is protected by two layers of authentication:
+1. Caddy basic auth — browser username/password popup
+2. Adminer login form — requires Postgres credentials
+
+**First time setup on the server:**
+
+**Step 1 — Generate the Caddy basic auth password hash:**
+```bash
+caddy hash-password --plaintext your-chosen-password
+```
+This outputs a bcrypt hash like:
+```
+$2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkqzwQITVtyhaVouxI2692
+```
+Copy the entire hash output including the `$` prefix.
+Never store the plaintext password in any file — only the hash goes in the Caddyfile.
+
+**Step 2 — Add the Adminer block to `/etc/caddy/Caddyfile`:**
+```caddy
+db.parapet.digital {
+    basicauth {
+        admin PASTE_YOUR_HASH_HERE
+    }
+    reverse_proxy localhost:8081
+}
+```
+Replace `PASTE_YOUR_HASH_HERE` with the bcrypt hash from Step 1.
+The username is: `admin`
+The password is: whatever plaintext you used in Step 1 — store it in your password manager.
+
+**Step 3 — Restart Caddy:**
+```bash
+systemctl restart caddy
+```
+
+**Step 4 — Add DNS record:**
+```
+Type: A  Name: db  Value: YOUR_SERVER_IP  TTL: 300
+```
+
+**Step 5 — Pull and restart containers:**
+```bash
+cd /opt/parapet
+git pull origin main
+docker compose up -d
+```
+
+**Step 6 — Verify Adminer is running:**
+```bash
+docker ps | grep adminer
+```
+
+**Logging into Adminer:**
+
+When you visit https://db.parapet.digital your browser shows a username/password popup. Enter:
+- Username: `admin`
+- Password: the plaintext password you chose in Step 1
+
+After passing Caddy auth, Adminer shows its own login form. Enter:
+- System: `PostgreSQL`
+- Server: `postgres`
+- Username: `postgres`
+- Password: your `POSTGRES_PASSWORD` from `.env`
+- Database: `parapet`
+
+**If you need to change the Caddy basic auth password:**
+1. Generate a new hash: `caddy hash-password --plaintext new-password`
+2. Update `/etc/caddy/Caddyfile` with the new hash
+3. `systemctl restart caddy`
+4. Update your password manager
+
+**Security notes:**
+- The Postgres port (5432) is never exposed to the internet
+- Adminer only binds to `127.0.0.1:8081` — not reachable from outside
+- All traffic goes through Caddy over HTTPS
+- Two auth layers protect the database from unauthorized access
+- Never expose Adminer without Caddy basic auth in front of it
 
 ---
 
