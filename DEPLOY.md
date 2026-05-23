@@ -229,7 +229,7 @@ caddy hash-password --plaintext your-chosen-password
 ```
 This outputs a bcrypt hash like:
 ```
-$2a$14$Zkx19XLiW6VYouLHR5NmfOFU0z2GTNmpkqzwQITVtyhaVouxI2692
+$2a$14$Zxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx2
 ```
 Copy the entire hash output including the `$` prefix.
 Never store the plaintext password in any file — only the hash goes in the Caddyfile.
