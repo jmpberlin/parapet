@@ -76,6 +76,15 @@ services:
     networks:
       - observability-network
 
+  adminer:
+    container_name: parapet-adminer
+    image: adminer:4.8.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
