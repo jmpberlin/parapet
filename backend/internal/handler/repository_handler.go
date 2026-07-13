@@ -22,11 +22,13 @@ type WatchedRepoRepository interface {
 type DepRepository interface {
 	GetByRepoID(id string) ([]domain.RepositoryDependency, error)
 	GetByRepoIDPaginated(repoID string, page, limit int) ([]domain.RepositoryDependency, int, error)
+	GetCountByRepoID(repoID string) (int, error)
 }
 
 type MatchRepository interface {
 	GetByRepositoryID(id string) ([]domain.Match, error)
 	GetByRepositoryIDPaginated(repoID string, page, limit int) ([]domain.Match, int, error)
+	GetCountByRepositoryID(repoID string) (int, error)
 }
 
 type repositoryDependencyResponse struct {
@@ -126,6 +128,13 @@ func getPaginationParams(r *http.Request, defaultLimit int) (page, limit int, er
 	return page, limit, nil
 }
 
+func calculateTotalPages(total, limit int) int {
+	if total == 0 {
+		return 1
+	}
+	return (total + limit - 1) / limit
+}
+
 func toMatchResponse(m domain.Match) matchResponse {
 	return matchResponse{
 		ID:               m.ID,
@@ -175,13 +184,13 @@ func GetRepositoryDetailHandler(repoRepo WatchedRepoRepository, depRepo DepRepos
 			return
 		}
 
-		_, depCount, err := depRepo.GetByRepoIDPaginated(id, 1, 1)
+		depCount, err := depRepo.GetCountByRepoID(id)
 		if err != nil {
 			http.Error(w, `{"error": "failed to fetch dependencies"}`, http.StatusInternalServerError)
 			return
 		}
 
-		_, matchCount, err := matchRepo.GetByRepositoryIDPaginated(id, 1, 1)
+		matchCount, err := matchRepo.GetCountByRepositoryID(id)
 		if err != nil {
 			http.Error(w, `{"error": "failed to fetch matches"}`, http.StatusInternalServerError)
 			return
@@ -270,16 +279,12 @@ func GetRepositoryMatchesHandler(matchRepo MatchRepository) http.HandlerFunc {
 			matchesResponse[i] = toMatchResponse(m)
 		}
 
-		totalPages := 1
-		if total > 0 {
-			totalPages = (total + limit - 1) / limit
-		}
 		writeJSON(w, paginatedMatchesResponse{
 			Items:      matchesResponse,
 			Total:      total,
 			Page:       page,
 			Limit:      limit,
-			TotalPages: totalPages,
+			TotalPages: calculateTotalPages(total, limit),
 		})
 	}
 }
@@ -305,16 +310,12 @@ func GetRepositoryDependenciesHandler(depRepo DepRepository) http.HandlerFunc {
 			depsResponse[i] = toRepositoryDependencyResponse(d)
 		}
 
-		totalPages := 1
-		if total > 0 {
-			totalPages = (total + limit - 1) / limit
-		}
 		writeJSON(w, paginatedDependenciesResponse{
 			Items:      depsResponse,
 			Total:      total,
 			Page:       page,
 			Limit:      limit,
-			TotalPages: totalPages,
+			TotalPages: calculateTotalPages(total, limit),
 		})
 	}
 }
