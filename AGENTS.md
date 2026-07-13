@@ -1,48 +1,90 @@
 # Agent Knowledge Base
 
-## PAR-22: Paginated Output for Matches and Dependencies - Review Complete
+## PAR-22: Paginated Output for Matches and Dependencies - Security Review Complete
 
 ### Summary
-Code review of the PAR-22 feature implementation for pagination of matches and dependencies was completed. One critical bug was identified and fixed.
+Security review of the PAR-22 feature implementation identified and fixed one MEDIUM severity issue related to input validation. All SQL injection, authentication, and data exposure vectors were verified as safe.
 
-### Issue Found and Fixed
-**Bug**: Total pages calculation returned 0 when there were no items (total=0)
+### Security Issues Found and Fixed
 
-**Location**: `backend/internal/handler/repository_handler.go` - both `GetRepositoryMatchesHandler` and `GetRepositoryDependenciesHandler`
+#### MEDIUM: Unbounded Page Parameter DoS Vulnerability
+**Location**: `backend/internal/handler/repository_handler.go` - `getPaginationParams()` function (affects both paginated endpoints)
 
-**Root Cause**: 
-- The formula `(total + limit - 1) / limit` produces 0 when total=0
-- Example: (0 + 20 - 1) / 20 = 19 / 20 = 0 (integer division)
+**Issue**: 
+- The page parameter is validated for minimum (≥ 1) but lacks an upper bound
+- Allows attackers to request arbitrarily large page numbers
+- PostgreSQL's OFFSET clause is O(n) complexity, making large offsets expensive
+- Potential vector for denial-of-service attacks
+
+**Root Cause**:
+- Input validation only checked `page < 1` but not maximum bound
+- Large page numbers cause inefficient database scans
+- Could also theoretically cause integer overflow on 32-bit systems: `(page - 1) * limit`
 
 **Impact**:
-- Semantically incorrect: A pagination response should always indicate at least 1 page exists
-- Edge case: When a repository has no matches or dependencies, the API would return `total_pages: 0`, which is confusing
+- DoS attacks by requesting pages with huge numbers (e.g., page=999999999)
+- Each request requires scanning through unnecessary database rows
+- No authentication required, publicly accessible endpoints
 
 **Fix Applied**:
 ```go
-totalPages := 1
-if total > 0 {
-    totalPages = (total + limit - 1) / limit
+page, err = strconv.Atoi(pageStr)
+if err != nil || page < 1 || page > 1000000 {
+    return 0, 0, errors.New("invalid page parameter")
 }
 ```
 
-This ensures `total_pages` is always at least 1, which is the standard REST API pagination convention.
+- Added maximum page limit: 1,000,000
+- Updated OpenAPI spec to document constraint
+- Requests exceeding limit return HTTP 400 Bad Request
+- Reasonable limit: with default limits, max 100,000,000 total records addressable
+
+### Security Verification Summary
+
+✅ **SQL Injection**: SAFE
+- All SQL queries use parameterized statements ($1, $2, etc.)
+- Repository ID from URL parameter safe via chi.URLParam()
+- No dynamic SQL construction
+
+✅ **Input Validation**: FIXED
+- Page parameter now bounded: 1 ≤ page ≤ 1,000,000
+- Limit parameter bounded: 1 ≤ limit ≤ 100
+- Invalid parameters return HTTP 400
+- All numeric conversions handle errors
+
+✅ **Sensitive Data Exposure**: SAFE
+- Error messages are generic and non-informative
+- No credentials, PII, or system details in responses or logs
+- Database queries don't expose internal structure
+
+✅ **Authentication/Authorization**: N/A (inherited from application design)
+- New endpoints follow existing pattern (public GET endpoints)
+- No auth checks on existing /repositories/{id}, /repositories endpoints
+- Not a new vulnerability introduced by this feature
+
+✅ **CORS/Security Headers**: SAFE
+- CORS middleware already configured at application level
+- Applies to all endpoints including these new ones
+- Restricted to https://parapet.digital
+
+✅ **Frontend API Handling**: SAFE
+- URLSearchParams properly encodes query parameters
+- Repository ID safely extracted from router
+- No XSS vulnerabilities (React framework handles escaping)
 
 ### Implementation Verification
 ✅ All specification requirements met:
 - New endpoints: GET `/repositories/{id}/matches?page=1&limit=20` and GET `/repositories/{id}/dependencies?page=1&limit=50`
 - Response shape: `{ items, total, page, limit, total_pages }`
 - Default limits: matches=20, dependencies=50
-- Validation: page ≥ 1, limit 1-100, returns 400 on invalid
+- Validation: 1 ≤ page ≤ 1,000,000, 1 ≤ limit ≤ 100, returns 400 on invalid
 - Database queries use efficient LIMIT/OFFSET + COUNT
 - Frontend pagination with prev/next controls
 - OpenAPI spec and TypeScript types updated
 - No breaking changes to existing methods
-- Response format change to `GetRepositoryDetailHandler` (counts instead of arrays) is intentional per spec
 
-### Related Files
-- Backend: `backend/internal/handler/repository_handler.go` (fixed)
-- Backend: `backend/internal/repository/postgres/{dependency,match}_repository.go`
-- Backend: `backend/internal/usecase/interfaces.go`
-- Frontend: `frontend/src/{api,hooks,pages,types}/`
-- API Spec: `backend/docs/openapi.yaml`
+### Related Files Modified
+- Backend: `backend/internal/handler/repository_handler.go` (security fix)
+- Backend: `backend/docs/openapi.yaml` (schema constraints)
+- Backend: `backend/internal/repository/postgres/{dependency,match}_repository.go` (reviewed)
+- Frontend: `frontend/src/{api,hooks,pages,types}/` (reviewed)
