@@ -25,8 +25,6 @@ type ArticleRepository interface {
 
 type MatchRepository interface {
 	GetByRepositoryID(id string) ([]domain.Match, error)
-	GetByRepositoryIDPaginated(repoID string, page, limit int) ([]domain.Match, int, error)
-	GetCountByRepositoryID(repoID string) (int, error)
 	GetByStatus(status domain.MatchStatus) ([]domain.Match, error)
 	GetUnresolvedByRepositoryID(repoID string) ([]domain.Match, error)
 	Save(match domain.Match) error
@@ -36,8 +34,6 @@ type MatchRepository interface {
 type DependencyRepository interface {
 	SaveAll(technologies []domain.RepositoryDependency) error
 	GetByRepoID(id string) ([]domain.RepositoryDependency, error)
-	GetByRepoIDPaginated(repoID string, page, limit int) ([]domain.RepositoryDependency, int, error)
-	GetCountByRepoID(repoID string) (int, error)
 	DeleteAllByRepoID(id string) error
 	DeleteByIDs(ids []string) error
 	Save(dep domain.RepositoryDependency) error

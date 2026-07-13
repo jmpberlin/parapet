@@ -152,8 +152,6 @@ func main() {
 
 	r.Get("/repositories", handler.GetRepositoriesHandler(watchedRepositoriesRepo))
 	r.Get("/repositories/{id}", handler.GetRepositoryDetailHandler(watchedRepositoriesRepo, depRepo, matchRepo))
-	r.Get("/repositories/{id}/matches", handler.GetRepositoryMatchesHandler(matchRepo))
-	r.Get("/repositories/{id}/dependencies", handler.GetRepositoryDependenciesHandler(depRepo))
 	r.Post("/repositories", handler.CreateRepositoryHandler(watchedRepositoriesRepo))
 
 	r.Get("/vulnerabilities", handler.GetVulnerabilitiesHandler(vulnRepo))

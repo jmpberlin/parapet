@@ -193,8 +193,8 @@ paths:
       tags: [Repositories]
       summary: Get repository details
       description: >
-        Returns full details for a watched repository including counts of dependencies
-        and vulnerability matches.
+        Returns full details for a watched repository including its resolved
+        dependency list and any CVE matches found against those dependencies.
       operationId: getRepositoryByID
       parameters:
         - name: id
@@ -206,7 +206,7 @@ paths:
             example: '01HXYZ5678GHIJKL'
       responses:
         '200':
-          description: Repository detail with dependency and match counts
+          description: Repository detail with dependencies and vulnerability matches
           content:
             application/json:
               schema:
@@ -221,122 +221,6 @@ paths:
                 error: repository not found
         '500':
           description: Database or internal error while fetching repository data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /repositories/{id}/matches:
-    get:
-      tags: [Repositories]
-      summary: Get paginated repository matches
-      description: >
-        Returns paginated CVE matches found against a watched repository's
-        dependencies. Use page and limit query parameters to control pagination.
-      operationId: getRepositoryMatches
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: Unique identifier of the watched repository
-          schema:
-            type: string
-            example: '01HXYZ5678GHIJKL'
-        - name: page
-          in: query
-          required: false
-          description: Page number for pagination (1-indexed)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 1000000
-            default: 1
-            example: 1
-        - name: limit
-          in: query
-          required: false
-          description: Number of items per page (1-100)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-            example: 20
-      responses:
-        '200':
-          description: Paginated matches for the repository
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedMatches'
-        '400':
-          description: Invalid pagination parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error: invalid pagination parameters
-        '500':
-          description: Database or internal error while fetching matches
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /repositories/{id}/dependencies:
-    get:
-      tags: [Repositories]
-      summary: Get paginated repository dependencies
-      description: >
-        Returns paginated dependencies detected in a watched repository's manifest.
-        Use page and limit query parameters to control pagination.
-      operationId: getRepositoryDependencies
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: Unique identifier of the watched repository
-          schema:
-            type: string
-            example: '01HXYZ5678GHIJKL'
-        - name: page
-          in: query
-          required: false
-          description: Page number for pagination (1-indexed)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 1000000
-            default: 1
-            example: 1
-        - name: limit
-          in: query
-          required: false
-          description: Number of items per page (1-100)
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 50
-            example: 50
-      responses:
-        '200':
-          description: Paginated dependencies for the repository
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedDependencies'
-        '400':
-          description: Invalid pagination parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                error: invalid pagination parameters
-        '500':
-          description: Database or internal error while fetching dependencies
           content:
             application/json:
               schema:
@@ -738,9 +622,8 @@ components:
     RepositoryDetail:
       type: object
       description: >
-        Basic detail view of a watched repository, including counts of
-        dependencies and CVE matches. Use the paginated endpoints to fetch
-        the actual dependencies and matches.
+        Full detail view of a watched repository, including its resolved
+        dependencies and any CVE matches found against them.
       properties:
         id:
           type: string
@@ -762,70 +645,18 @@ components:
           description: >
             When the repository's dependency manifest was last fetched.
             Null if never fetched.
-        dependency_count:
-          type: integer
-          description: Total number of dependencies detected in the repository's manifest
-          example: 1247
-        match_count:
-          type: integer
-          description: Total number of CVE matches found against this repository's dependencies
-          example: 15
-      required:
-        [id, owner_name, repository_name, git_provider, dependency_count, match_count]
-
-    PaginatedDependencies:
-      type: object
-      description: Paginated response of repository dependencies
-      properties:
-        items:
+        dependencies:
           type: array
-          description: The dependencies for this page
+          description: Dependencies detected in the repository's manifest
           items:
             $ref: '#/components/schemas/RepositoryDependency'
-        total:
-          type: integer
-          description: Total number of dependencies
-          example: 1247
-        page:
-          type: integer
-          description: Current page number (1-indexed)
-          example: 1
-        limit:
-          type: integer
-          description: Number of items per page
-          example: 50
-        total_pages:
-          type: integer
-          description: Total number of pages
-          example: 25
-      required: [items, total, page, limit, total_pages]
-
-    PaginatedMatches:
-      type: object
-      description: Paginated response of vulnerability matches
-      properties:
-        items:
+        matches:
           type: array
-          description: The matches for this page
+          description: CVE matches found against this repository's dependencies
           items:
             $ref: '#/components/schemas/Match'
-        total:
-          type: integer
-          description: Total number of matches
-          example: 125
-        page:
-          type: integer
-          description: Current page number (1-indexed)
-          example: 1
-        limit:
-          type: integer
-          description: Number of items per page
-          example: 20
-        total_pages:
-          type: integer
-          description: Total number of pages
-          example: 7
-      required: [items, total, page, limit, total_pages]
+      required:
+        [id, owner_name, repository_name, git_provider, dependencies, matches]
 
     CreateRepositoryRequest:
       type: object

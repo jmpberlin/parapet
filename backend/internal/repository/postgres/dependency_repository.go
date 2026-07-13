@@ -61,48 +61,6 @@ func (r *DependencyRepository) GetByRepoID(repoID string) ([]domain.RepositoryDe
 	return deps, nil
 }
 
-func (r *DependencyRepository) GetByRepoIDPaginated(repoID string, page, limit int) ([]domain.RepositoryDependency, int, error) {
-	total, err := r.GetCountByRepoID(repoID)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * limit
-	rows, err := r.db.Query(`
-		SELECT id, repository_id, name, version, purl, created_at, last_matched_at
-		FROM repository_dependencies
-		WHERE repository_id = $1
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`, repoID, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get dependencies for repo %s: %w", repoID, err)
-	}
-	defer rows.Close()
-
-	var deps []domain.RepositoryDependency
-	for rows.Next() {
-		var d domain.RepositoryDependency
-		err := rows.Scan(&d.ID, &d.RepositoryID, &d.Name, &d.Version, &d.PURL, &d.CreatedAt, &d.LastMatchedAt)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan dependency: %w", err)
-		}
-		deps = append(deps, d)
-	}
-	return deps, total, nil
-}
-
-func (r *DependencyRepository) GetCountByRepoID(repoID string) (int, error) {
-	var total int
-	err := r.db.QueryRow(`
-		SELECT COUNT(*) FROM repository_dependencies WHERE repository_id = $1
-	`, repoID).Scan(&total)
-	if err != nil {
-		return 0, fmt.Errorf("failed to count dependencies: %w", err)
-	}
-	return total, nil
-}
-
 func (r *DependencyRepository) DeleteAllByRepoID(repoID string) error {
 	_, err := r.db.Exec(`
 		DELETE FROM repository_dependencies WHERE repository_id = $1
