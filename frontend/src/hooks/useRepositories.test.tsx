@@ -85,8 +85,8 @@ describe('useRepository', () => {
       owner_name: 'jmp',
       repository_name: 'nightwatch',
       git_provider: 'Github.com',
-      dependencies: [],
-      matches: [],
+      dependency_count: 0,
+      match_count: 0,
     });
 
     const { result } = renderHook(() => useRepository('repo-1'), {

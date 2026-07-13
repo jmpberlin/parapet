@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,10 +21,14 @@ type WatchedRepoRepository interface {
 
 type DepRepository interface {
 	GetByRepoID(id string) ([]domain.RepositoryDependency, error)
+	GetByRepoIDPaginated(repoID string, page, limit int) ([]domain.RepositoryDependency, int, error)
+	GetCountByRepoID(repoID string) (int, error)
 }
 
 type MatchRepository interface {
 	GetByRepositoryID(id string) ([]domain.Match, error)
+	GetByRepositoryIDPaginated(repoID string, page, limit int) ([]domain.Match, int, error)
+	GetCountByRepositoryID(repoID string) (int, error)
 }
 
 type repositoryDependencyResponse struct {
@@ -56,13 +61,29 @@ type repoListItem struct {
 }
 
 type repoDetail struct {
-	ID             string                         `json:"id"`
-	OwnerName      string                         `json:"owner_name"`
-	RepositoryName string                         `json:"repository_name"`
-	GitProvider    string                         `json:"git_provider"`
-	LastFetchedAt  *time.Time                     `json:"last_fetched_at"`
-	Dependencies   []repositoryDependencyResponse `json:"dependencies"`
-	Matches        []matchResponse                `json:"matches"`
+	ID                 string     `json:"id"`
+	OwnerName          string     `json:"owner_name"`
+	RepositoryName     string     `json:"repository_name"`
+	GitProvider        string     `json:"git_provider"`
+	LastFetchedAt      *time.Time `json:"last_fetched_at"`
+	DependencyCount    int        `json:"dependency_count"`
+	MatchCount         int        `json:"match_count"`
+}
+
+type paginatedDependenciesResponse struct {
+	Items      []repositoryDependencyResponse `json:"items"`
+	Total      int                            `json:"total"`
+	Page       int                            `json:"page"`
+	Limit      int                            `json:"limit"`
+	TotalPages int                            `json:"total_pages"`
+}
+
+type paginatedMatchesResponse struct {
+	Items      []matchResponse `json:"items"`
+	Total      int             `json:"total"`
+	Page       int             `json:"page"`
+	Limit      int             `json:"limit"`
+	TotalPages int             `json:"total_pages"`
 }
 
 type createRepoRequest struct {
@@ -81,6 +102,37 @@ func toRepositoryDependencyResponse(d domain.RepositoryDependency) repositoryDep
 		CreatedAt:     d.CreatedAt,
 		LastMatchedAt: d.LastMatchedAt,
 	}
+}
+
+func getPaginationParams(r *http.Request, defaultLimit int) (page, limit int, err error) {
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	if pageStr == "" {
+		pageStr = "1"
+	}
+	if limitStr == "" {
+		limitStr = strconv.Itoa(defaultLimit)
+	}
+
+	page, err = strconv.Atoi(pageStr)
+	if err != nil || page < 1 || page > 1000000 {
+		return 0, 0, errors.New("invalid page parameter")
+	}
+
+	limit, err = strconv.Atoi(limitStr)
+	if err != nil || limit < 1 || limit > 100 {
+		return 0, 0, errors.New("invalid limit parameter")
+	}
+
+	return page, limit, nil
+}
+
+func calculateTotalPages(total, limit int) int {
+	if total == 0 {
+		return 1
+	}
+	return (total + limit - 1) / limit
 }
 
 func toMatchResponse(m domain.Match) matchResponse {
@@ -132,36 +184,26 @@ func GetRepositoryDetailHandler(repoRepo WatchedRepoRepository, depRepo DepRepos
 			return
 		}
 
-		deps, err := depRepo.GetByRepoID(id)
+		depCount, err := depRepo.GetCountByRepoID(id)
 		if err != nil {
 			http.Error(w, `{"error": "failed to fetch dependencies"}`, http.StatusInternalServerError)
 			return
 		}
 
-		matches, err := matchRepo.GetByRepositoryID(id)
+		matchCount, err := matchRepo.GetCountByRepositoryID(id)
 		if err != nil {
 			http.Error(w, `{"error": "failed to fetch matches"}`, http.StatusInternalServerError)
 			return
 		}
 
-		depsResponse := make([]repositoryDependencyResponse, len(deps))
-		for i, d := range deps {
-			depsResponse[i] = toRepositoryDependencyResponse(d)
-		}
-
-		matchesResponse := make([]matchResponse, len(matches))
-		for i, m := range matches {
-			matchesResponse[i] = toMatchResponse(m)
-		}
-
 		writeJSON(w, repoDetail{
-			ID:             repo.ID,
-			OwnerName:      repo.OwnerName,
-			RepositoryName: repo.RepositoryName,
-			GitProvider:    string(repo.GitProvider),
-			LastFetchedAt:  repo.LastFetchedAt,
-			Dependencies:   depsResponse,
-			Matches:        matchesResponse,
+			ID:              repo.ID,
+			OwnerName:       repo.OwnerName,
+			RepositoryName:  repo.RepositoryName,
+			GitProvider:     string(repo.GitProvider),
+			LastFetchedAt:   repo.LastFetchedAt,
+			DependencyCount: depCount,
+			MatchCount:      matchCount,
 		})
 	}
 }
@@ -205,13 +247,75 @@ func CreateRepositoryHandler(repo WatchedRepoRepository) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusCreated)
 		writeJSON(w, repoDetail{
-			ID:             watched.ID,
-			OwnerName:      watched.OwnerName,
-			RepositoryName: watched.RepositoryName,
-			GitProvider:    string(watched.GitProvider),
-			LastFetchedAt:  watched.LastFetchedAt,
-			Dependencies:   []repositoryDependencyResponse{},
-			Matches:        []matchResponse{},
+			ID:              watched.ID,
+			OwnerName:       watched.OwnerName,
+			RepositoryName:  watched.RepositoryName,
+			GitProvider:     string(watched.GitProvider),
+			LastFetchedAt:   watched.LastFetchedAt,
+			DependencyCount: 0,
+			MatchCount:      0,
+		})
+	}
+}
+
+func GetRepositoryMatchesHandler(matchRepo MatchRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+
+		page, limit, err := getPaginationParams(r, 20)
+		if err != nil {
+			http.Error(w, `{"error": "invalid pagination parameters"}`, http.StatusBadRequest)
+			return
+		}
+
+		matches, total, err := matchRepo.GetByRepositoryIDPaginated(id, page, limit)
+		if err != nil {
+			http.Error(w, `{"error": "failed to fetch matches"}`, http.StatusInternalServerError)
+			return
+		}
+
+		matchesResponse := make([]matchResponse, len(matches))
+		for i, m := range matches {
+			matchesResponse[i] = toMatchResponse(m)
+		}
+
+		writeJSON(w, paginatedMatchesResponse{
+			Items:      matchesResponse,
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: calculateTotalPages(total, limit),
+		})
+	}
+}
+
+func GetRepositoryDependenciesHandler(depRepo DepRepository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+
+		page, limit, err := getPaginationParams(r, 50)
+		if err != nil {
+			http.Error(w, `{"error": "invalid pagination parameters"}`, http.StatusBadRequest)
+			return
+		}
+
+		deps, total, err := depRepo.GetByRepoIDPaginated(id, page, limit)
+		if err != nil {
+			http.Error(w, `{"error": "failed to fetch dependencies"}`, http.StatusInternalServerError)
+			return
+		}
+
+		depsResponse := make([]repositoryDependencyResponse, len(deps))
+		for i, d := range deps {
+			depsResponse[i] = toRepositoryDependencyResponse(d)
+		}
+
+		writeJSON(w, paginatedDependenciesResponse{
+			Items:      depsResponse,
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: calculateTotalPages(total, limit),
 		})
 	}
 }

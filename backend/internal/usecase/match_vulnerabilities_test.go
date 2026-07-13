@@ -23,6 +23,12 @@ func (m *mockDependencyRepo) SaveAll(d []domain.RepositoryDependency) error { re
 func (m *mockDependencyRepo) GetByRepoID(id string) ([]domain.RepositoryDependency, error) {
 	return nil, nil
 }
+func (m *mockDependencyRepo) GetByRepoIDPaginated(repoID string, page, limit int) ([]domain.RepositoryDependency, int, error) {
+	return nil, 0, nil
+}
+func (m *mockDependencyRepo) GetCountByRepoID(repoID string) (int, error) {
+	return 0, nil
+}
 func (m *mockDependencyRepo) GetByRepoIDOrderedByLastMatchedAt(id string) ([]domain.RepositoryDependency, error) {
 	return nil, nil
 }
@@ -34,6 +40,12 @@ type mockMatchRepo struct{}
 
 func (m *mockMatchRepo) Save(match domain.Match) error                            { return nil }
 func (m *mockMatchRepo) GetByRepositoryID(id string) ([]domain.Match, error)      { return nil, nil }
+func (m *mockMatchRepo) GetByRepositoryIDPaginated(repoID string, page, limit int) ([]domain.Match, int, error) {
+	return nil, 0, nil
+}
+func (m *mockMatchRepo) GetCountByRepositoryID(repoID string) (int, error) {
+	return 0, nil
+}
 func (m *mockMatchRepo) GetByStatus(s domain.MatchStatus) ([]domain.Match, error) { return nil, nil }
 func (m *mockMatchRepo) GetUnresolvedByRepositoryID(id string) ([]domain.Match, error) {
 	return nil, nil
