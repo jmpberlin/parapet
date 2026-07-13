@@ -114,7 +114,7 @@ func getPaginationParams(r *http.Request, defaultLimit int) (page, limit int, er
 	}
 
 	page, err = strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
+	if err != nil || page < 1 || page > 1000000 {
 		return 0, 0, errors.New("invalid page parameter")
 	}
 
