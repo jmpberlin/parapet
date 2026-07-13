@@ -36,6 +36,37 @@ func (r *MatchRepository) GetByRepositoryID(repoID string) ([]domain.Match, erro
 	`, repoID)
 }
 
+func (r *MatchRepository) GetByRepositoryIDPaginated(repoID string, page, limit int) ([]domain.Match, int, error) {
+	total, err := r.GetCountByRepositoryID(repoID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	matches, err := r.queryMatches(`
+		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier
+		FROM matches WHERE repository_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, repoID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return matches, total, nil
+}
+
+func (r *MatchRepository) GetCountByRepositoryID(repoID string) (int, error) {
+	var total int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*) FROM matches WHERE repository_id = $1
+	`, repoID).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count matches: %w", err)
+	}
+	return total, nil
+}
+
 func (r *MatchRepository) GetByStatus(status domain.MatchStatus) ([]domain.Match, error) {
 	return r.queryMatches(`
 		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier

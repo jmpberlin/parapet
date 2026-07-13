@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useRepositories, useRepository } from '../../hooks/useRepositories';
+import {
+  useRepositories,
+  useRepository,
+  useRepositoryMatches,
+  useRepositoryDependencies,
+} from '../../hooks/useRepositories';
 import { useArticles } from '../../hooks/useArticles';
 import { usePipelineStatus, useRunPipeline } from '../../hooks/usePipeline';
 import DashboardCard from '../../components/DashboardCard/DashboardCard';
@@ -26,10 +31,20 @@ const ZERO_TIME = '0001-01-01T00:00:00Z';
 function Repositories() {
   const { data: repos, isLoading: reposLoading } = useRepositories();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [matchesPage, setMatchesPage] = useState(1);
+  const [dependenciesPage, setDependenciesPage] = useState(1);
 
   const effectiveId = selectedId ?? repos?.[0]?.id ?? null;
 
   const { data: repo, isLoading: repoLoading } = useRepository(effectiveId ?? '');
+  const { data: matches, isLoading: matchesLoading } = useRepositoryMatches(
+    effectiveId ?? '',
+    matchesPage,
+  );
+  const { data: dependencies, isLoading: dependenciesLoading } = useRepositoryDependencies(
+    effectiveId ?? '',
+    dependenciesPage,
+  );
   const { data: articles, isLoading: articlesLoading } = useArticles(7);
   const { data: pipeline } = usePipelineStatus();
   const { mutate: runPipeline, isPending: isStarting } = useRunPipeline();
@@ -154,59 +169,105 @@ function Repositories() {
             ) : null}
           </DashboardCard>
 
-          <DashboardCard title='Alerts' count={repo?.matches.length}>
-            {repoLoading ? (
+          <DashboardCard title='Alerts' count={repo?.match_count}>
+            {matchesLoading ? (
               <p className='repos__empty'>Loading…</p>
-            ) : !repo || repo.matches.length === 0 ? (
+            ) : !matches || matches.items.length === 0 ? (
               <p className='repos__empty'>
                 No vulnerability matches found.
               </p>
             ) : (
-              <ul className='repos__list'>
-                {repo.matches.map((match) => (
-                  <li key={match.id} className='repos__match-item'>
-                    <span
-                      className={`repos__status repos__status--${match.status.toLowerCase()}`}
+              <>
+                <ul className='repos__list'>
+                  {matches.items.map((match) => (
+                    <li key={match.id} className='repos__match-item'>
+                      <span
+                        className={`repos__status repos__status--${match.status.toLowerCase()}`}
+                      >
+                        {match.status}
+                      </span>
+                      <div className='repos__match-detail'>
+                        <span className='repos__match-name'>
+                          {match.matched_component}
+                        </span>
+                        <span className='repos__match-version'>
+                          {match.matched_version}
+                        </span>
+                      </div>
+                      <span className='repos__match-date repos__date'>
+                        {fmt(match.created_at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {matches && matches.total_pages > 1 && (
+                  <div className='repos__pagination'>
+                    <button
+                      className='repos__pagination-btn'
+                      onClick={() => setMatchesPage((p) => Math.max(1, p - 1))}
+                      disabled={matchesPage === 1}
                     >
-                      {match.status}
+                      ← Previous
+                    </button>
+                    <span className='repos__pagination-info'>
+                      Page {matchesPage} of {matches.total_pages}
                     </span>
-                    <div className='repos__match-detail'>
-                      <span className='repos__match-name'>
-                        {match.matched_component}
-                      </span>
-                      <span className='repos__match-version'>
-                        {match.matched_version}
-                      </span>
-                    </div>
-                    <span className='repos__match-date repos__date'>
-                      {fmt(match.created_at)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+                    <button
+                      className='repos__pagination-btn'
+                      onClick={() => setMatchesPage((p) => Math.min(matches.total_pages, p + 1))}
+                      disabled={matchesPage === matches.total_pages}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </DashboardCard>
 
           <DashboardCard
             title='Dependencies'
-            count={repo?.dependencies.length}
+            count={repo?.dependency_count}
             scrollable
           >
-            {repoLoading ? (
+            {dependenciesLoading ? (
               <p className='repos__empty'>Loading…</p>
-            ) : !repo || repo.dependencies.length === 0 ? (
+            ) : !dependencies || dependencies.items.length === 0 ? (
               <p className='repos__empty'>No dependencies found.</p>
             ) : (
-              <ul className='repos__list'>
-                {repo.dependencies.map((dep) => (
-                  <li key={dep.id} className='repos__dep-item'>
-                    <span className='repos__dep-name'>{dep.name}</span>
-                    <span className='repos__dep-version'>
-                      {dep.version}
+              <>
+                <ul className='repos__list'>
+                  {dependencies.items.map((dep) => (
+                    <li key={dep.id} className='repos__dep-item'>
+                      <span className='repos__dep-name'>{dep.name}</span>
+                      <span className='repos__dep-version'>
+                        {dep.version}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {dependencies && dependencies.total_pages > 1 && (
+                  <div className='repos__pagination'>
+                    <button
+                      className='repos__pagination-btn'
+                      onClick={() => setDependenciesPage((p) => Math.max(1, p - 1))}
+                      disabled={dependenciesPage === 1}
+                    >
+                      ← Previous
+                    </button>
+                    <span className='repos__pagination-info'>
+                      Page {dependenciesPage} of {dependencies.total_pages}
                     </span>
-                  </li>
-                ))}
-              </ul>
+                    <button
+                      className='repos__pagination-btn'
+                      onClick={() => setDependenciesPage((p) => Math.min(dependencies.total_pages, p + 1))}
+                      disabled={dependenciesPage === dependencies.total_pages}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </DashboardCard>
 

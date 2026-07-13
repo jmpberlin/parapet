@@ -1,6 +1,7 @@
 package postgres_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -386,5 +387,253 @@ func TestMatchRepository_UpdateStatus_ClearsResolvedAt(t *testing.T) {
 	}
 	if got.ResolvedAt != nil {
 		t.Errorf("expected ResolvedAt to be nil after re-opening, got %s", got.ResolvedAt)
+	}
+}
+
+func TestMatchRepository_GetCountByRepositoryID_Zero(t *testing.T) {
+	truncateMatches(t)
+	_, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	count, err := repo.GetCountByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get count: %s", err)
+	}
+	if count != 0 {
+		t.Errorf("expected count 0 for empty repo, got %d", count)
+	}
+}
+
+func TestMatchRepository_GetCountByRepositoryID_Multiple(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	packages := []string{"lodash", "express", "react", "vue", "angular"}
+	for i, pkg := range packages {
+		m := newTestMatch(vulnID, repoID)
+		m.ComponentPURL = "pkg:npm/" + pkg + "@1.0.0"
+		m.MatchedComponent = pkg
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match %d: %s", i, err)
+		}
+	}
+
+	count, err := repo.GetCountByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get count: %s", err)
+	}
+	if count != 5 {
+		t.Errorf("expected count 5, got %d", count)
+	}
+}
+
+func TestMatchRepository_GetCountByRepositoryID_IsolatedByRepo(t *testing.T) {
+	truncateMatches(t)
+	vulnID1, repoID1 := seedMatchPrereqs(t)
+	vulnID2, repoID2 := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	packages1 := []string{"lodash", "express", "react"}
+	for i, pkg := range packages1 {
+		m := newTestMatch(vulnID1, repoID1)
+		m.ComponentPURL = "pkg:npm/" + pkg + "@1.0.0"
+		m.MatchedComponent = pkg
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match %d for repo1: %s", i, err)
+		}
+	}
+
+	packages2 := []string{"vue", "angular", "svelte", "next", "nuxt", "gatsby", "remix"}
+	for i, pkg := range packages2 {
+		m := newTestMatch(vulnID2, repoID2)
+		m.ComponentPURL = "pkg:npm/" + pkg + "@1.0.0"
+		m.MatchedComponent = pkg
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match %d for repo2: %s", i, err)
+		}
+	}
+
+	count1, err := repo.GetCountByRepositoryID(repoID1)
+	if err != nil {
+		t.Fatalf("failed to get count for repo1: %s", err)
+	}
+	if count1 != 3 {
+		t.Errorf("expected count 3 for repo1, got %d", count1)
+	}
+
+	count2, err := repo.GetCountByRepositoryID(repoID2)
+	if err != nil {
+		t.Fatalf("failed to get count for repo2: %s", err)
+	}
+	if count2 != 7 {
+		t.Errorf("expected count 7 for repo2, got %d", count2)
+	}
+}
+
+func TestMatchRepository_GetByRepositoryIDPaginated_FirstPage(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	for i := 0; i < 50; i++ {
+		m := newTestMatch(vulnID, repoID)
+		m.ComponentPURL = "pkg:npm/pkg" + fmt.Sprintf("%d", i) + "@1.0.0"
+		m.MatchedComponent = "pkg" + fmt.Sprintf("%d", i)
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match: %s", err)
+		}
+	}
+
+	matches, total, err := repo.GetByRepositoryIDPaginated(repoID, 1, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches: %s", err)
+	}
+	if len(matches) != 20 {
+		t.Errorf("expected 20 matches on page 1, got %d", len(matches))
+	}
+	if total != 50 {
+		t.Errorf("expected total 50, got %d", total)
+	}
+}
+
+func TestMatchRepository_GetByRepositoryIDPaginated_SecondPage(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	for i := 0; i < 50; i++ {
+		m := newTestMatch(vulnID, repoID)
+		m.ComponentPURL = "pkg:npm/pkg" + fmt.Sprintf("%d", i) + "@1.0.0"
+		m.MatchedComponent = "pkg" + fmt.Sprintf("%d", i)
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match: %s", err)
+		}
+	}
+
+	matches, total, err := repo.GetByRepositoryIDPaginated(repoID, 2, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches: %s", err)
+	}
+	if len(matches) != 20 {
+		t.Errorf("expected 20 matches on page 2, got %d", len(matches))
+	}
+	if total != 50 {
+		t.Errorf("expected total 50, got %d", total)
+	}
+}
+
+func TestMatchRepository_GetByRepositoryIDPaginated_LastPagePartial(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	for i := 0; i < 45; i++ {
+		m := newTestMatch(vulnID, repoID)
+		m.ComponentPURL = "pkg:npm/pkg" + fmt.Sprintf("%d", i) + "@1.0.0"
+		m.MatchedComponent = "pkg" + fmt.Sprintf("%d", i)
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match: %s", err)
+		}
+	}
+
+	matches, total, err := repo.GetByRepositoryIDPaginated(repoID, 3, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches: %s", err)
+	}
+	if len(matches) != 5 {
+		t.Errorf("expected 5 matches on last page, got %d", len(matches))
+	}
+	if total != 45 {
+		t.Errorf("expected total 45, got %d", total)
+	}
+}
+
+func TestMatchRepository_GetByRepositoryIDPaginated_Empty(t *testing.T) {
+	truncateMatches(t)
+	_, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	matches, total, err := repo.GetByRepositoryIDPaginated(repoID, 1, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches: %s", err)
+	}
+	if len(matches) != 0 {
+		t.Errorf("expected 0 matches for empty repo, got %d", len(matches))
+	}
+	if total != 0 {
+		t.Errorf("expected total 0, got %d", total)
+	}
+}
+
+func TestMatchRepository_GetByRepositoryIDPaginated_SingleItem(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	m := newTestMatch(vulnID, repoID)
+	if err := repo.Save(m); err != nil {
+		t.Fatalf("failed to save match: %s", err)
+	}
+
+	matches, total, err := repo.GetByRepositoryIDPaginated(repoID, 1, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches: %s", err)
+	}
+	if len(matches) != 1 {
+		t.Errorf("expected 1 match, got %d", len(matches))
+	}
+	if total != 1 {
+		t.Errorf("expected total 1, got %d", total)
+	}
+	if matches[0].ID != m.ID {
+		t.Errorf("expected match ID %s, got %s", m.ID, matches[0].ID)
+	}
+}
+
+func TestMatchRepository_GetByRepositoryIDPaginated_IsolatedByRepo(t *testing.T) {
+	truncateMatches(t)
+	vulnID1, repoID1 := seedMatchPrereqs(t)
+	vulnID2, repoID2 := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	for i := 0; i < 30; i++ {
+		m := newTestMatch(vulnID1, repoID1)
+		m.ComponentPURL = "pkg:npm/pkg" + fmt.Sprintf("%d", i) + "@1.0.0"
+		m.MatchedComponent = "pkg" + fmt.Sprintf("%d", i)
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match for repo1: %s", err)
+		}
+	}
+
+	for i := 0; i < 10; i++ {
+		m := newTestMatch(vulnID2, repoID2)
+		m.ComponentPURL = "pkg:npm/pkg" + fmt.Sprintf("%d", i) + "@1.0.0"
+		m.MatchedComponent = "pkg" + fmt.Sprintf("%d", i)
+		if err := repo.Save(m); err != nil {
+			t.Fatalf("failed to save match for repo2: %s", err)
+		}
+	}
+
+	matches1, total1, err := repo.GetByRepositoryIDPaginated(repoID1, 1, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches for repo1: %s", err)
+	}
+	if len(matches1) != 20 {
+		t.Errorf("expected 20 matches for repo1, got %d", len(matches1))
+	}
+	if total1 != 30 {
+		t.Errorf("expected total 30 for repo1, got %d", total1)
+	}
+
+	matches2, total2, err := repo.GetByRepositoryIDPaginated(repoID2, 1, 20)
+	if err != nil {
+		t.Fatalf("failed to get paginated matches for repo2: %s", err)
+	}
+	if len(matches2) != 10 {
+		t.Errorf("expected 10 matches for repo2, got %d", len(matches2))
+	}
+	if total2 != 10 {
+		t.Errorf("expected total 10 for repo2, got %d", total2)
 	}
 }

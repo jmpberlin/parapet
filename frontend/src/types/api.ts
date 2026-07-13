@@ -108,6 +108,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/repositories/{id}/matches": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get paginated repository matches
+         * @description Returns paginated CVE matches found against a watched repository's dependencies.
+         */
+        get: operations["getRepositoryMatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/repositories/{id}/dependencies": {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get paginated repository dependencies
+         * @description Returns paginated dependencies detected in a watched repository's manifest.
+         */
+        get: operations["getRepositoryDependencies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/vulnerabilities": {
         parameters: {
             query?: never;
@@ -429,10 +475,10 @@ export interface components {
              * @description When the repository's dependency manifest was last fetched. Null if never fetched.
              */
             last_fetched_at?: string | null;
-            /** @description Dependencies detected in the repository's manifest */
-            dependencies: components["schemas"]["RepositoryDependency"][];
-            /** @description CVE matches found against this repository's dependencies */
-            matches: components["schemas"]["Match"][];
+            /** @description Total number of dependencies detected in the repository's manifest */
+            dependency_count: number;
+            /** @description Total number of CVE matches found against this repository's dependencies */
+            match_count: number;
         };
         /** @description Request body for registering a new repository to watch */
         CreateRepositoryRequest: {
@@ -452,6 +498,32 @@ export interface components {
              * @enum {string}
              */
             git_provider: "Github.com" | "Bitbucket.com";
+        };
+        /** @description Paginated response of repository dependencies */
+        PaginatedDependencies: {
+            /** @description The dependencies for this page */
+            items: components["schemas"]["RepositoryDependency"][];
+            /** @description Total number of dependencies */
+            total: number;
+            /** @description Current page number (1-indexed) */
+            page: number;
+            /** @description Number of items per page */
+            limit: number;
+            /** @description Total number of pages */
+            total_pages: number;
+        };
+        /** @description Paginated response of vulnerability matches */
+        PaginatedMatches: {
+            /** @description The matches for this page */
+            items: components["schemas"]["Match"][];
+            /** @description Total number of matches */
+            total: number;
+            /** @description Current page number (1-indexed) */
+            page: number;
+            /** @description Number of items per page */
+            limit: number;
+            /** @description Total number of pages */
+            total_pages: number;
         };
         /** @description Acknowledgement returned immediately when a pipeline run is triggered */
         PipelineStartedResponse: {
@@ -737,6 +809,108 @@ export interface operations {
                 };
             };
             /** @description Database or internal error while fetching repository data */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getRepositoryMatches: {
+        parameters: {
+            query?: {
+                /** @description Page number for pagination (1-indexed) */
+                page?: number;
+                /** @description Number of items per page (1-100) */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Unique identifier of the watched repository */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated matches for the repository */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedMatches"];
+                };
+            };
+            /** @description Invalid pagination parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "invalid pagination parameters"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Database or internal error while fetching matches */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getRepositoryDependencies: {
+        parameters: {
+            query?: {
+                /** @description Page number for pagination (1-indexed) */
+                page?: number;
+                /** @description Number of items per page (1-100) */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Unique identifier of the watched repository */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated dependencies for the repository */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedDependencies"];
+                };
+            };
+            /** @description Invalid pagination parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "invalid pagination parameters"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Database or internal error while fetching dependencies */
             500: {
                 headers: {
                     [name: string]: unknown;
