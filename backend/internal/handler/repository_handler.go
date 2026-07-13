@@ -102,7 +102,7 @@ func toRepositoryDependencyResponse(d domain.RepositoryDependency) repositoryDep
 	}
 }
 
-func getPaginationParams(r *http.Request) (page, limit int, err error) {
+func getPaginationParams(r *http.Request, defaultLimit int) (page, limit int, err error) {
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 
@@ -110,7 +110,7 @@ func getPaginationParams(r *http.Request) (page, limit int, err error) {
 		pageStr = "1"
 	}
 	if limitStr == "" {
-		limitStr = "20"
+		limitStr = strconv.Itoa(defaultLimit)
 	}
 
 	page, err = strconv.Atoi(pageStr)
@@ -253,7 +253,7 @@ func GetRepositoryMatchesHandler(matchRepo MatchRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 
-		page, limit, err := getPaginationParams(r)
+		page, limit, err := getPaginationParams(r, 20)
 		if err != nil {
 			http.Error(w, `{"error": "invalid pagination parameters"}`, http.StatusBadRequest)
 			return
@@ -285,7 +285,7 @@ func GetRepositoryDependenciesHandler(depRepo DepRepository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 
-		page, limit, err := getPaginationParams(r)
+		page, limit, err := getPaginationParams(r, 50)
 		if err != nil {
 			http.Error(w, `{"error": "invalid pagination parameters"}`, http.StatusBadRequest)
 			return
