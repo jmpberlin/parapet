@@ -270,7 +270,10 @@ func GetRepositoryMatchesHandler(matchRepo MatchRepository) http.HandlerFunc {
 			matchesResponse[i] = toMatchResponse(m)
 		}
 
-		totalPages := (total + limit - 1) / limit
+		totalPages := 1
+		if total > 0 {
+			totalPages = (total + limit - 1) / limit
+		}
 		writeJSON(w, paginatedMatchesResponse{
 			Items:      matchesResponse,
 			Total:      total,
@@ -302,7 +305,10 @@ func GetRepositoryDependenciesHandler(depRepo DepRepository) http.HandlerFunc {
 			depsResponse[i] = toRepositoryDependencyResponse(d)
 		}
 
-		totalPages := (total + limit - 1) / limit
+		totalPages := 1
+		if total > 0 {
+			totalPages = (total + limit - 1) / limit
+		}
 		writeJSON(w, paginatedDependenciesResponse{
 			Items:      depsResponse,
 			Total:      total,
