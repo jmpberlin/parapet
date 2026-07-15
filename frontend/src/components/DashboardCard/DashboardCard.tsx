@@ -4,13 +4,14 @@ interface DashboardCardProps {
   title?: string;
   count?: number;
   scrollable?: boolean;
+  fixedHeight?: boolean;
   className?: string;
   children: React.ReactNode;
 }
 
-function DashboardCard({ title, count, scrollable, className, children }: DashboardCardProps) {
+function DashboardCard({ title, count, scrollable, fixedHeight, className, children }: DashboardCardProps) {
   return (
-    <div className={`dashboard-card${className ? ` ${className}` : ''}`}>
+    <div className={`dashboard-card${fixedHeight ? ' dashboard-card--fixed-height' : ''}${className ? ` ${className}` : ''}`}>
       {title !== undefined && (
         <div className='dashboard-card__header'>
           <span className='dashboard-card__title'>{title}</span>
