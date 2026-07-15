@@ -45,10 +45,6 @@
     }
   }
 
-  // List card whose height follows its content: a full page holds at most
-  // ten items plus the pagination row, so nothing is ever clipped. The body
-  // is a flex column so pagination can pin to the bottom when the CSS grid
-  // stretches the card to match a taller sibling in the same row.
   &--fixed-height {
     .dashboard-card__body {
       flex: 1;
