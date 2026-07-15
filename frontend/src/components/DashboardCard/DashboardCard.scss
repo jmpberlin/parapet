@@ -19,6 +19,7 @@
     margin-bottom: 1.25rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid rgba(45, 113, 65, 0.15);
+    flex-shrink: 0;
   }
 
   &__title {
@@ -41,6 +42,22 @@
     &--scrollable {
       overflow-y: auto;
       max-height: 320px;
+    }
+  }
+
+  &--fixed-height {
+    height: 570px;
+
+    .dashboard-card__body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+
+      &--scrollable {
+        max-height: none;
+        overflow-y: auto;
+      }
     }
   }
 }

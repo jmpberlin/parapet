@@ -27,7 +27,7 @@ export function createRepository(
 export function getRepositoryMatches(
   id: string,
   page = 1,
-  limit = 20,
+  limit = 10,
 ): Promise<PaginatedMatches> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   return apiFetch(`/repositories/${id}/matches?${params}`);
@@ -36,7 +36,7 @@ export function getRepositoryMatches(
 export function getRepositoryDependencies(
   id: string,
   page = 1,
-  limit = 50,
+  limit = 10,
 ): Promise<PaginatedDependencies> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   return apiFetch(`/repositories/${id}/dependencies?${params}`);

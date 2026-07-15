@@ -169,7 +169,7 @@ function Repositories() {
             ) : null}
           </DashboardCard>
 
-          <DashboardCard title='Alerts' count={repo?.match_count}>
+          <DashboardCard title='Alerts' count={repo?.match_count} fixedHeight>
             {matchesLoading ? (
               <p className='repos__empty'>Loading…</p>
             ) : !matches || matches.items.length === 0 ? (
@@ -228,7 +228,7 @@ function Repositories() {
           <DashboardCard
             title='Dependencies'
             count={repo?.dependency_count}
-            scrollable
+            fixedHeight
           >
             {dependenciesLoading ? (
               <p className='repos__empty'>Loading…</p>
@@ -271,7 +271,7 @@ function Repositories() {
             )}
           </DashboardCard>
 
-          <DashboardCard title='Scanned' count={articles?.length} scrollable>
+          <DashboardCard title='Scanned' count={articles?.length} fixedHeight scrollable>
             {articlesLoading ? (
               <p className='repos__empty'>Loading…</p>
             ) : !articles || articles.length === 0 ? (
