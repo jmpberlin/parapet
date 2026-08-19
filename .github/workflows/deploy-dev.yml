@@ -19,8 +19,10 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
-          args: --accept-routes
-
+      - name: Debug routing
+        run: |
+          tailscale status
+          ip route show table 52
       - name: Write CI deploy key
         run: |
           install -m 600 -D /dev/null ~/.ssh/ci_runner_key
