@@ -12,34 +12,7 @@ jobs:
   deploy:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    environment:
-      name: dev
-      url: https://${{ vars.DEV_HOST }}
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE_TAG: ${{ github.event.pull_request.head.sha }}
-      SSH_OPTS: -o StrictHostKeyChecking=accept-new
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build & push images
-        run: |
-          for svc in backend frontend; do
-            img=ghcr.io/jmpberlin/parapet-$svc
-            docker build -t $img:${IMAGE_TAG} ./$svc
-            docker push $img:${IMAGE_TAG}
-          done
-
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
         with:
@@ -47,19 +20,12 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
 
-      - name: Deploy
+      - name: Write CI deploy key
         run: |
-          ssh ${SSH_OPTS} root@${{ vars.DEV_HOST }} "bash -euo pipefail -s" <<EOF
-            cd /opt/parapet-dev
-            git fetch origin ${IMAGE_TAG}
-            git checkout --detach FETCH_HEAD
-            export IMAGE_TAG=${IMAGE_TAG}
-            docker compose pull backend frontend
-            docker compose up -d
-            docker image prune -f
-          EOF
+          install -m 600 -D /dev/null ~/.ssh/ci_runner_key
+          echo "${{ secrets.CI_RUNNER_SSH_KEY }}" > ~/.ssh/ci_runner_key
 
-      - name: Health check (on the box — your ACL allows tcp:22 only)
+      - name: Prove connectivity to dev box via subnet route
         run: |
-          ssh ${SSH_OPTS} root@${{ vars.DEV_HOST }} \
-            'curl --fail --retry 5 --retry-delay 3 http://127.0.0.1:8090/api/health'
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
+            ci_runner@10.0.0.4 'hostname && groups'
