@@ -25,6 +25,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - HTTP_PROXY=http://${GATEWAY_PROXY_PRIVATE_IP}:${GATEWAY_PROXY_PORT}
+      - HTTPS_PROXY=http://${GATEWAY_PROXY_PRIVATE_IP}:${GATEWAY_PROXY_PORT}
+      - NO_PROXY=postgres,localhost,127.0.0.1
     ports:
       - '${BACKEND_HOST}:${BACKEND_HOST_PORT}:${BACKEND_PORT}'
     depends_on:
