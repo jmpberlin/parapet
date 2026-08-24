@@ -17,6 +17,9 @@ jobs:
       packages: write
     env:
       IMAGE_TAG: ${{ github.event.pull_request.head.sha }}
+    environment:
+      name: dev
+      url: http://${{ vars.DEV_SERVER_PRIVATE_IP }}:8090
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,6 +51,25 @@ jobs:
           install -m 600 -D /dev/null ~/.ssh/ci_runner_key
           echo "${{ secrets.CI_RUNNER_SSH_KEY }}" > ~/.ssh/ci_runner_key
 
+      - name: Write .env
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
+            ci_runner@${{ vars.DEV_SERVER_PRIVATE_IP }} "cat > /opt/parapet-dev/.env" <<EOF
+          POSTGRES_USER=${{ vars.DEV_POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.DEV_POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ vars.DEV_POSTGRES_DB }}
+          BACKEND_PORT=${{ vars.BACKEND_PORT }}
+          BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
+          BACKEND_HOST=${{ vars.BACKEND_HOST }}
+          FRONTEND_HOST_PORT=${{ vars.FRONTEND_HOST_PORT }}
+          CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
+          GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
+          VITE_API_URL=${{ vars.VITE_API_URL }}
+          GRAFANA_PASSWORD=${{ secrets.DEV_GRAFANA_PASSWORD }}
+          GATEWAY_PROXY_PRIVATE_IP=${{ vars.GATEWAY_PRIVATE_IP }}
+          GATEWAY_PROXY_PORT=${{ vars.GATEWAY_PROXY_PORT }}
+          DEV_SERVER_PRIVATE_IP=${{ vars.DEV_SERVER_PRIVATE_IP }}
+          EOF
       - name: Deploy
         run: |
           ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \

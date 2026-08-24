@@ -117,7 +117,7 @@ func main() {
 	socketDevScraper := crawler.NewSocketDevScraper()
 	crawlerOrchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{bcScraper, socketDevScraper})
 	claudeClient := claude.NewClaudeClient(getEnv("CLAUDE_API_KEY", ""))
-	githubClient := github.NewGithubClient(getEnv("GITHUB_TOKEN", ""))
+	githubClient := github.NewGithubClient(getEnv("PAT_GITHUB", ""))
 
 	// usecases
 	harvestUC := usecase.NewHarvestArticlesUseCase(articleRepo, crawlerOrchestrator, 48*time.Hour)
