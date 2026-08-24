@@ -42,6 +42,7 @@ services:
     container_name: parapet-frontend
     ports:
       - '127.0.0.1:${FRONTEND_HOST_PORT:-8090}:80'
+      - '${DEV_SERVER_PRIVATE_IP}:${FRONTEND_HOST_PORT:-8090}:80'
     depends_on:
       - backend
     networks:
