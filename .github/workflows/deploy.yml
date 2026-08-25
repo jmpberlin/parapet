@@ -36,16 +36,21 @@ jobs:
         run: envsubst '$ADMINER_BEARER' < Caddyfile.template > Caddyfile
         env:
           ADMINER_BEARER: ${{ secrets.ADMINER_BEARER }}
-
+      
+      - name: Write CI deploy key
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/ci_runner_key
+          echo "${{ secrets.CI_RUNNER_SSH_KEY }}" > ~/.ssh/ci_runner_key
+      
       - name: Deploy Caddyfile
         run: |
-          cat Caddyfile | ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+          cat Caddyfile | ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             root@${{ vars.SERVER_PUBLIC_IP }} \
             'cat > /etc/caddy/Caddyfile && systemctl reload caddy'
 
       - name: Write .env
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             root@${{ vars.SERVER_PUBLIC_IP }} "cat > /opt/parapet/.env" <<EOF
           POSTGRES_USER=${{ vars.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
@@ -64,7 +69,7 @@ jobs:
 
       - name: Deploy app
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             root@${{ vars.SERVER_PUBLIC_IP }} "bash -euo pipefail -s" <<EOF
             cd /opt/parapet
             git pull origin main
