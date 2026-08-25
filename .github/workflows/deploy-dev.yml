@@ -87,4 +87,4 @@ jobs:
       - name: Health check
         run: |
           ssh -i ~/.ssh/ci_runner_key ci_runner@${{ vars.SERVER_PRIVATE_IP }} \
-            'curl --fail --retry 5 --retry-delay 3 http://127.0.0.1:8090/api/health'
+            'curl --fail --retry 5 --retry-delay 3 http://${{ vars.SERVER_PRIVATE_IP }}:8090/api/health'
