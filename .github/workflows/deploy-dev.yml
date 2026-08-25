@@ -55,9 +55,9 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             ci_runner@${{ vars.DEV_SERVER_PRIVATE_IP }} "cat > /opt/parapet-dev/.env" <<EOF
-          POSTGRES_USER=${{ vars.DEV_POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.DEV_POSTGRES_PASSWORD }}
-          POSTGRES_DB=${{ vars.DEV_POSTGRES_DB }}
+          POSTGRES_USER=${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ vars.POSTGRES_DB }}
           BACKEND_PORT=${{ vars.BACKEND_PORT }}
           BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
           BACKEND_HOST=${{ vars.BACKEND_HOST }}
@@ -65,8 +65,8 @@ jobs:
           CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
           GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
           VITE_API_URL=${{ vars.VITE_API_URL }}
-          GRAFANA_PASSWORD=${{ secrets.DEV_GRAFANA_PASSWORD }}
-          GATEWAY_PROXY_PRIVATE_IP=${{ vars.GATEWAY_PRIVATE_IP }}
+          GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
+          GATEWAY_PROXY_PRIVATE_IP=${{ vars.GATEWAY_PROXY_PRIVATE_IP }}
           GATEWAY_PROXY_PORT=${{ vars.GATEWAY_PROXY_PORT }}
           DEV_SERVER_PRIVATE_IP=${{ vars.DEV_SERVER_PRIVATE_IP }}
           EOF
