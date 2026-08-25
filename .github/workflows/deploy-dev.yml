@@ -19,7 +19,7 @@ jobs:
       IMAGE_TAG: ${{ github.event.pull_request.head.sha }}
     environment:
       name: dev
-      url: http://${{ vars.DEV_SERVER_PRIVATE_IP }}:8090
+      url: http://${{ vars.SERVER_PRIVATE_IP }}:8090
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,10 +54,11 @@ jobs:
       - name: Write .env
         run: |
           ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
-            ci_runner@${{ vars.DEV_SERVER_PRIVATE_IP }} "cat > /opt/parapet-dev/.env" <<EOF
+            ci_runner@${{ vars.SERVER_PRIVATE_IP }} "cat > /opt/parapet-dev/.env" <<EOF
           POSTGRES_USER=${{ vars.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB=${{ vars.POSTGRES_DB }}
+          POSTGRES_PORT=${{ vars.POSTGRES_PORT }}
           BACKEND_PORT=${{ vars.BACKEND_PORT }}
           BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
           BACKEND_HOST=${{ vars.BACKEND_HOST }}
@@ -66,18 +67,18 @@ jobs:
           GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
           VITE_API_URL=${{ vars.VITE_API_URL }}
           GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
-          GATEWAY_PROXY_PRIVATE_IP=${{ vars.GATEWAY_PROXY_PRIVATE_IP }}
           GATEWAY_HTTP_PROXY=${{ vars.GATEWAY_HTTP_PROXY }}
           GATEWAY_HTTPS_PROXY=${{ vars.GATEWAY_HTTPS_PROXY }}
-          DEV_SERVER_PRIVATE_IP=${{ vars.DEV_SERVER_PRIVATE_IP }}
+          SERVER_PRIVATE_IP=${{ vars.SERVER_PRIVATE_IP }}
           EOF
       - name: Deploy
         run: |
           ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
-            ci_runner@${{ vars.DEV_SERVER_PRIVATE_IP }} "bash -euo pipefail -s" <<EOF
+            ci_runner@${{ vars.SERVER_PRIVATE_IP }} "bash -euo pipefail -s" <<EOF
             cd /opt/parapet-dev
             git fetch origin ${IMAGE_TAG}
             git checkout --detach FETCH_HEAD
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             export IMAGE_TAG=${IMAGE_TAG}
             docker compose pull backend frontend
             docker compose up -d
@@ -85,5 +86,5 @@ jobs:
 
       - name: Health check
         run: |
-          ssh -i ~/.ssh/ci_runner_key ci_runner@${{ vars.DEV_SERVER_PRIVATE_IP }} \
+          ssh -i ~/.ssh/ci_runner_key ci_runner@${{ vars.SERVER_PRIVATE_IP }} \
             'curl --fail --retry 5 --retry-delay 3 http://127.0.0.1:8090/api/health'

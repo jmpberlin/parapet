@@ -1,0 +1,18 @@
+parapet.digital {
+    reverse_proxy 127.0.0.1:8090
+}
+
+www.parapet.digital {
+    redir https://parapet.digital{uri} permanent
+}
+
+grafana.parapet.digital {
+    reverse_proxy 127.0.0.1:3000
+}
+
+db.parapet.digital {
+    basicauth {
+        admin ${ADMINER_BEARER}
+    }
+    reverse_proxy 127.0.0.1:8081
+}

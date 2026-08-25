@@ -43,7 +43,7 @@ func initDB() error {
 	port := getEnv("POSTGRES_PORT", "5432")
 	user := getEnv("POSTGRES_USER", "postgres")
 	password := getEnv("POSTGRES_PASSWORD", "")
-	dbname := getEnv("POSTGRES_DB", "nightwatch")
+	dbname := getEnv("POSTGRES_DB", "parapet")
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
