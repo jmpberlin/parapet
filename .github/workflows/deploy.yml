@@ -2,48 +2,77 @@ name: Deploy to Hetzner
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: write
+    environment:
+      name: prod
+      url: https://parapet.digital
+    env:
+      IMAGE_TAG: ${{ github.sha }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: docker/login-action@v3
         with:
-          node-version: 20
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build frontend
-        working-directory: frontend
+      - name: Build & push images
         run: |
-          npm install
-          npm run build
+          for svc in backend frontend; do
+            img=ghcr.io/jmpberlin/parapet-$svc
+            docker build -t $img:${IMAGE_TAG} ./$svc
+            docker push $img:${IMAGE_TAG}
+          done
 
-      - name: Copy frontend build to server
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: root
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "frontend/dist/"
-          target: "/opt/parapet/frontend/dist"
-          strip_components: 2
+      - name: Render Caddyfile
+        run: envsubst '$ADMINER_BEARER' < Caddyfile.template > Caddyfile
+        env:
+          ADMINER_BEARER: ${{ secrets.ADMINER_BEARER }}
 
-      - name: Deploy backend
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: root
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          script: |
+      - name: Deploy Caddyfile
+        run: |
+          cat Caddyfile | ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+            root@${{ vars.SERVER_PUBLIC_IP }} \
+            'cat > /etc/caddy/Caddyfile && systemctl reload caddy'
+
+      - name: Write .env
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+            root@${{ vars.SERVER_PUBLIC_IP }} "cat > /opt/parapet/.env" <<EOF
+          POSTGRES_USER=${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ vars.POSTGRES_DB }}
+          POSTGRES_PORT=${{ vars.POSTGRES_PORT }}
+          BACKEND_PORT=${{ vars.BACKEND_PORT }}
+          BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
+          BACKEND_HOST=${{ vars.BACKEND_HOST }}
+          FRONTEND_HOST_PORT=${{ vars.FRONTEND_HOST_PORT }}
+          CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
+          GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
+          VITE_API_URL=${{ vars.VITE_API_URL }}
+          GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
+          GRAFANA_ROOT_URL=${{ vars.GRAFANA_ROOT_URL }}
+          EOF
+
+      - name: Deploy app
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+            root@${{ vars.SERVER_PUBLIC_IP }} "bash -euo pipefail -s" <<EOF
             cd /opt/parapet
             git pull origin main
-            docker compose up -d --build
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            export IMAGE_TAG=${IMAGE_TAG}
+            docker compose pull backend frontend
+            docker compose up -d
+          EOF
 
       - name: Health check
         run: |

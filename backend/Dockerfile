@@ -10,7 +10,7 @@ COPY . .
 
 RUN go build -o backend ./cmd/api
 
-FROM alpine
+FROM alpine:3.21
 
 COPY --from=builder /app/backend /backend
 

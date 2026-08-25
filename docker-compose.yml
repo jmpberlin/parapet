@@ -14,24 +14,39 @@ services:
   backend:
     build:
       context: ./backend
+    image: ghcr.io/jmpberlin/parapet-backend:${IMAGE_TAG:-latest}
     container_name: parapet-backend
     environment:
       - PORT=${BACKEND_PORT}
       - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
+      - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - HTTP_PROXY=${GATEWAY_HTTP_PROXY:-}
+      - HTTPS_PROXY=${GATEWAY_HTTPS_PROXY:-}
+      - NO_PROXY=postgres,localhost,127.0.0.1
     ports:
-      - '${BACKEND_HOST}:${BACKEND_HOST_PORT}:${BACKEND_PORT}'
+      - '${BACKEND_HOST:-127.0.0.1}:${BACKEND_HOST_PORT}:${BACKEND_PORT}'
     depends_on:
       - postgres
     networks:
       - app-network
     restart: unless-stopped
-
+  frontend:
+    build:
+      context: ./frontend
+    image: ghcr.io/jmpberlin/parapet-frontend:${IMAGE_TAG:-latest}
+    container_name: parapet-frontend
+    ports:
+      - '${SERVER_PRIVATE_IP:-127.0.0.1}:${FRONTEND_HOST_PORT:-8090}:80'
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
   loki:
     container_name: parapet-loki
     image: grafana/loki:2.9.0
@@ -63,7 +78,7 @@ services:
     image: grafana/grafana:11.2.0
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${SERVER_PRIVATE_IP:-127.0.0.1}:3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
     environment:
@@ -81,7 +96,7 @@ services:
     image: adminer:4.8.1
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8081:8080"
+      - "${SERVER_PRIVATE_IP:-127.0.0.1}:8081:8080"
     networks:
       - app-network
 
