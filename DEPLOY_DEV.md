@@ -284,8 +284,8 @@ Copy `.env.example` → `.env` on the dev box and fill in real values (DB creden
   backend:
     environment:
       # ...existing vars...
-      - HTTP_PROXY=http://${GATEWAY_PROXY_PRIVATE_IP}:${GATEWAY_PROXY_PORT}
-      - HTTPS_PROXY=http://${GATEWAY_PROXY_PRIVATE_IP}:${GATEWAY_PROXY_PORT}
+      - HTTP_PROXY=http://${GATEWAY_HTTP_PROXY:-}
+      - HTTPS_PROXY=${GATEWAY_HTTPS_PROXY:-}
       - NO_PROXY=postgres,localhost,127.0.0.1
 ```
 
@@ -307,7 +307,7 @@ Copy `.env.example` → `.env` on the dev box and fill in real values (DB creden
       - "${DEV_SERVER_PRIVATE_IP}:3000:3000"
 ```
 
-`.env` additions needed: `GATEWAY_PROXY_PRIVATE_IP`, `GATEWAY_PROXY_PORT`, `DEV_SERVER_PRIVATE_IP`.
+`.env` additions needed: `GATEWAY_PROXY_PRIVATE_IP`, `GATEWAY_HTTP_PROXY`, `GATEWAY_HTTPS_PROXY`, `DEV_SERVER_PRIVATE_IP`.
 
 **Gotcha:** editing the compose file or `.env` does not retroactively change an already-running container — environment and port bindings are fixed at container creation. After any such change:
 ```bash

@@ -67,7 +67,8 @@ jobs:
           VITE_API_URL=${{ vars.VITE_API_URL }}
           GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
           GATEWAY_PROXY_PRIVATE_IP=${{ vars.GATEWAY_PROXY_PRIVATE_IP }}
-          GATEWAY_PROXY_PORT=${{ vars.GATEWAY_PROXY_PORT }}
+          GATEWAY_HTTP_PROXY=${{ vars.GATEWAY_HTTP_PROXY }}
+          GATEWAY_HTTPS_PROXY=${{ vars.GATEWAY_HTTPS_PROXY }}
           DEV_SERVER_PRIVATE_IP=${{ vars.DEV_SERVER_PRIVATE_IP }}
           EOF
       - name: Deploy
