@@ -183,3 +183,72 @@ func TestArticleRepository_GetByDaysPaginated_StableOrder(t *testing.T) {
 		}
 	}
 }
+
+func TestArticleRepository_GetByDaysPaginated_PageBeyondTotal(t *testing.T) {
+	truncateArticles(t)
+	repo := postgres.NewArticleRepository(testDB)
+
+	for i := 0; i < 5; i++ {
+		a := newTestArticle(0)
+		a.PublishedAt = time.Now().Add(-time.Duration(i) * time.Minute)
+		if err := repo.Save(a); err != nil {
+			t.Fatalf("failed to save article %d: %s", i, err)
+		}
+	}
+
+	articles, total, err := repo.GetByDaysPaginated(7, 2, 10)
+	if err != nil {
+		t.Fatalf("failed to get page beyond total: %s", err)
+	}
+	if len(articles) != 0 {
+		t.Errorf("expected 0 articles beyond the last page, got %d", len(articles))
+	}
+	if total != 5 {
+		t.Errorf("expected total 5, got %d", total)
+	}
+}
+
+func TestArticleRepository_GetByDaysPaginated_MaxLimitBoundary(t *testing.T) {
+	truncateArticles(t)
+	repo := postgres.NewArticleRepository(testDB)
+
+	for i := 0; i < 100; i++ {
+		a := newTestArticle(0)
+		a.PublishedAt = time.Now().Add(-time.Duration(i) * time.Minute)
+		if err := repo.Save(a); err != nil {
+			t.Fatalf("failed to save article %d: %s", i, err)
+		}
+	}
+
+	articles, total, err := repo.GetByDaysPaginated(7, 1, 100)
+	if err != nil {
+		t.Fatalf("failed to get page with limit 100: %s", err)
+	}
+	if len(articles) != 100 {
+		t.Errorf("expected 100 articles with limit 100, got %d", len(articles))
+	}
+	if total != 100 {
+		t.Errorf("expected total 100, got %d", total)
+	}
+}
+
+func TestArticleRepository_GetByDaysPaginated_LimitLargerThanTotal(t *testing.T) {
+	truncateArticles(t)
+	repo := postgres.NewArticleRepository(testDB)
+
+	for i := 0; i < 3; i++ {
+		a := newTestArticle(0)
+		a.PublishedAt = time.Now().Add(-time.Duration(i) * time.Minute)
+		if err := repo.Save(a); err != nil {
+			t.Fatalf("failed to save article %d: %s", i, err)
+		}
+	}
+
+	articles, total, err := repo.GetByDaysPaginated(7, 1, 10)
+	if err != nil {
+		t.Fatalf("failed to get articles: %s", err)
+	}
+	if len(articles) != 3 || total != 3 {
+		t.Errorf("expected 3 articles and total 3, got %d and %d", len(articles), total)
+	}
+}

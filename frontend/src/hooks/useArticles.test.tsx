@@ -80,5 +80,40 @@ describe('useArticlesPaginated', () => {
     expect(result.current.isPlaceholderData).toBe(true);
     expect(result.current.isFetching).toBe(true);
     expect(result.current.isLoading).toBe(false);
+    expect(result.current.isError).toBe(false);
+  });
+
+  test('reports error state when the fetch fails', async () => {
+    vi.mocked(api.getArticlesPaginated).mockRejectedValueOnce(
+      new Error('failed to fetch articles'),
+    );
+
+    const { result } = renderHook(() => useArticlesPaginated(7, 1), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  test('transitions from loading to success on first load', async () => {
+    vi.mocked(api.getArticlesPaginated).mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 10,
+      total_pages: 1,
+    });
+
+    const { result } = renderHook(() => useArticlesPaginated(7, 1), {
+      wrapper: createWrapper(),
+    });
+
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.isLoading).toBe(false);
+    expect(api.getArticlesPaginated).toHaveBeenCalledWith(7, 1);
   });
 });

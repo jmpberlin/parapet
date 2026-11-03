@@ -54,4 +54,21 @@ describe('Pagination', () => {
     expect(screen.getByRole('button', { name: 'Next →' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '← Previous' })).toBeDisabled();
   });
+
+  test('disables both buttons on a single page', () => {
+    render(<Pagination page={1} totalPages={1} onChange={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: '← Previous' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next →' })).toBeDisabled();
+    expect(screen.getByText('Page 1 of 1')).toBeInTheDocument();
+  });
+
+  test('does not navigate beyond the last page when onNext exceeds it', () => {
+    const onChange = vi.fn();
+    render(<Pagination page={5} totalPages={5} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

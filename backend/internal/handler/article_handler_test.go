@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -112,5 +113,132 @@ func TestGetArticlesHandler_InvalidPagination(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestGetArticlesHandler_InvalidDays(t *testing.T) {
+	repo := &mockArticleRepoForTests{}
+
+	for _, days := range []string{"0", "-5", "abc"} {
+		req := httptest.NewRequest(http.MethodGet, "/articles?days="+days, nil)
+		rec := httptest.NewRecorder()
+
+		GetArticlesHandler(repo).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("days=%s: expected 400, got %d", days, rec.Code)
+		}
+	}
+	if repo.lastDays != 0 {
+		t.Errorf("repo must not be called with invalid days, got days=%d", repo.lastDays)
+	}
+}
+
+func TestGetArticlesHandler_DaysWindowBoundaries(t *testing.T) {
+	repo := &mockArticleRepoForTests{}
+
+	req := httptest.NewRequest(http.MethodGet, "/articles?days=365", nil)
+	rec := httptest.NewRecorder()
+	GetArticlesHandler(repo).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || repo.lastDays != 365 {
+		t.Errorf("expected 365 to pass through, got code=%d days=%d", rec.Code, repo.lastDays)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/articles?days=366", nil)
+	rec = httptest.NewRecorder()
+	GetArticlesHandler(repo).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || repo.lastDays != 365 {
+		t.Errorf("expected 366 clamped to 365, got code=%d days=%d", rec.Code, repo.lastDays)
+	}
+}
+
+func TestGetArticlesHandler_DefaultPageAndWindow(t *testing.T) {
+	repo := &mockArticleRepoForTests{}
+
+	req := httptest.NewRequest(http.MethodGet, "/articles", nil)
+	rec := httptest.NewRecorder()
+
+	GetArticlesHandler(repo).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if repo.lastDays != 7 {
+		t.Errorf("expected default days=7, got %d", repo.lastDays)
+	}
+}
+
+func TestGetArticlesHandler_PaginationBoundaries(t *testing.T) {
+	cases := []struct {
+		query     string
+		wantCode  int
+		wantPage  int
+		wantLimit int
+	}{
+		{query: "page=1&limit=1", wantCode: 200, wantPage: 1, wantLimit: 1},
+		{query: "page=1000000&limit=100", wantCode: 200, wantPage: 1000000, wantLimit: 100},
+		{query: "page=0", wantCode: 400},
+		{query: "page=1000001", wantCode: 400},
+		{query: "limit=0", wantCode: 400},
+		{query: "limit=101", wantCode: 400},
+		{query: "limit=abc", wantCode: 400},
+		{query: "page=-3", wantCode: 400},
+	}
+
+	for _, tc := range cases {
+		repo := &mockArticleRepoForTests{}
+		req := httptest.NewRequest(http.MethodGet, "/articles?"+tc.query, nil)
+		rec := httptest.NewRecorder()
+
+		GetArticlesHandler(repo).ServeHTTP(rec, req)
+
+		if rec.Code != tc.wantCode {
+			t.Errorf("%s: expected %d, got %d", tc.query, tc.wantCode, rec.Code)
+			continue
+		}
+		if tc.wantCode != 200 {
+			continue
+		}
+		if repo.lastPage != tc.wantPage || repo.lastLimit != tc.wantLimit {
+			t.Errorf("%s: expected page=%d limit=%d, got page=%d limit=%d",
+				tc.query, tc.wantPage, tc.wantLimit, repo.lastPage, repo.lastLimit)
+		}
+	}
+}
+
+func TestGetArticlesHandler_RepoError(t *testing.T) {
+	repo := &mockArticleRepoForTests{getErr: errors.New("db down")}
+
+	req := httptest.NewRequest(http.MethodGet, "/articles", nil)
+	rec := httptest.NewRecorder()
+
+	GetArticlesHandler(repo).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rec.Code)
+	}
+}
+
+func TestGetArticlesHandler_EmptyWindowTotalPagesIsOne(t *testing.T) {
+	repo := &mockArticleRepoForTests{articles: []domain.Article{}, total: 0}
+
+	req := httptest.NewRequest(http.MethodGet, "/articles", nil)
+	rec := httptest.NewRecorder()
+
+	GetArticlesHandler(repo).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+
+	var resp paginatedArticlesResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to unmarshal response: %s", err)
+	}
+	if resp.Items == nil {
+		t.Error("expected items to serialize as an empty array, got null")
+	}
+	if resp.TotalPages != 1 {
+		t.Errorf("expected total_pages 1 for an empty result, got %d", resp.TotalPages)
 	}
 }
