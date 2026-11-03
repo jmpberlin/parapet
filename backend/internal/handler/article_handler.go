@@ -11,6 +11,7 @@ import (
 
 type ArticleRepository interface {
 	GetByDays(days int) ([]domain.Article, error)
+	GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error)
 	GetByID(id string) (*domain.Article, error)
 }
 
@@ -26,6 +27,14 @@ type articleResponse struct {
 	CrawledAt      time.Time  `json:"crawled_at"`
 	ProcessedAt    *time.Time `json:"processed_at"`
 	UpdatedAt      *time.Time `json:"updated_at"`
+}
+
+type paginatedArticlesResponse struct {
+	Items      []articleResponse `json:"items"`
+	Total      int               `json:"total"`
+	Page       int               `json:"page"`
+	Limit      int               `json:"limit"`
+	TotalPages int               `json:"total_pages"`
 }
 
 func toArticleResponse(a domain.Article) articleResponse {
@@ -57,7 +66,13 @@ func GetArticlesHandler(repo ArticleRepository) http.HandlerFunc {
 			days = parsed
 		}
 
-		articles, err := repo.GetByDays(days)
+		page, limit, err := getPaginationParams(r, 10)
+		if err != nil {
+			http.Error(w, `{"error": "invalid pagination parameters"}`, http.StatusBadRequest)
+			return
+		}
+
+		articles, total, err := repo.GetByDaysPaginated(days, page, limit)
 		if err != nil {
 			http.Error(w, `{"error": "failed to fetch articles"}`, http.StatusInternalServerError)
 			return
@@ -67,7 +82,14 @@ func GetArticlesHandler(repo ArticleRepository) http.HandlerFunc {
 		for i, a := range articles {
 			response[i] = toArticleResponse(a)
 		}
-		writeJSON(w, response)
+
+		writeJSON(w, paginatedArticlesResponse{
+			Items:      response,
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: calculateTotalPages(total, limit),
+		})
 	}
 }
 

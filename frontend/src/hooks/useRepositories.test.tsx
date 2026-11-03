@@ -172,6 +172,37 @@ describe('useRepositoryMatches', () => {
     expect(result.current.data).toEqual(mockMatches);
     expect(result.current.data?.total_pages).toBe(2);
   });
+
+  test('keeps previous page data while next page is loading', async () => {
+    const page1 = {
+      items: [{ id: 'match-1', vulnerability_id: 'vuln-1', repository_id: 'repo-1', component_purl: 'purl', matched_component: 'lodash', matched_version: '4.17.0', status: 'CONFIRMED' as const, created_at: '2024-01-01T00:00:00Z' }],
+      total: 20,
+      page: 1,
+      limit: 10,
+      total_pages: 2,
+    };
+
+    vi.mocked(api.getRepositoryMatches).mockImplementation((_id, page) => {
+      if (page === 1) return Promise.resolve(page1);
+      return new Promise(() => {}); // page 2 never resolves
+    });
+
+    const { result, rerender } = renderHook(
+      ({ page }: { page: number }) => useRepositoryMatches('repo-1', page),
+      { wrapper: createWrapper(), initialProps: { page: 1 } },
+    );
+
+    await waitFor(() => expect(result.current.data?.page).toBe(1));
+
+    rerender({ page: 2 });
+
+    // data of page 1 stays visible while page 2 loads
+    expect(result.current.data?.page).toBe(1);
+    expect(result.current.isPlaceholderData).toBe(true);
+    expect(result.current.isFetching).toBe(true);
+    // not the very first load anymore, so no full "Loading…" state
+    expect(result.current.isLoading).toBe(false);
+  });
 });
 
 describe('useRepositoryDependencies', () => {

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -61,13 +60,13 @@ type repoListItem struct {
 }
 
 type repoDetail struct {
-	ID                 string     `json:"id"`
-	OwnerName          string     `json:"owner_name"`
-	RepositoryName     string     `json:"repository_name"`
-	GitProvider        string     `json:"git_provider"`
-	LastFetchedAt      *time.Time `json:"last_fetched_at"`
-	DependencyCount    int        `json:"dependency_count"`
-	MatchCount         int        `json:"match_count"`
+	ID              string     `json:"id"`
+	OwnerName       string     `json:"owner_name"`
+	RepositoryName  string     `json:"repository_name"`
+	GitProvider     string     `json:"git_provider"`
+	LastFetchedAt   *time.Time `json:"last_fetched_at"`
+	DependencyCount int        `json:"dependency_count"`
+	MatchCount      int        `json:"match_count"`
 }
 
 type paginatedDependenciesResponse struct {
@@ -102,37 +101,6 @@ func toRepositoryDependencyResponse(d domain.RepositoryDependency) repositoryDep
 		CreatedAt:     d.CreatedAt,
 		LastMatchedAt: d.LastMatchedAt,
 	}
-}
-
-func getPaginationParams(r *http.Request, defaultLimit int) (page, limit int, err error) {
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	if limitStr == "" {
-		limitStr = strconv.Itoa(defaultLimit)
-	}
-
-	page, err = strconv.Atoi(pageStr)
-	if err != nil || page < 1 || page > 1000000 {
-		return 0, 0, errors.New("invalid page parameter")
-	}
-
-	limit, err = strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > 100 {
-		return 0, 0, errors.New("invalid limit parameter")
-	}
-
-	return page, limit, nil
-}
-
-func calculateTotalPages(total, limit int) int {
-	if total == 0 {
-		return 1
-	}
-	return (total + limit - 1) / limit
 }
 
 func toMatchResponse(m domain.Match) matchResponse {

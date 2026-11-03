@@ -21,6 +21,7 @@ type ArticleRepository interface {
 	GetUnprocessed() ([]domain.Article, error)
 	MarkProcessed(id string) error
 	GetByDays(days int) ([]domain.Article, error)
+	GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error)
 }
 
 type MatchRepository interface {

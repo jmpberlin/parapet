@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRepository,
   getRepositories,
@@ -30,6 +30,7 @@ export function useRepositoryMatches(id: string, page: number) {
     queryKey: ['repositories', id, 'matches', page],
     queryFn: () => getRepositoryMatches(id, page),
     enabled: !!id,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -38,6 +39,7 @@ export function useRepositoryDependencies(id: string, page: number) {
     queryKey: ['repositories', id, 'dependencies', page],
     queryFn: () => getRepositoryDependencies(id, page),
     enabled: !!id,
+    placeholderData: keepPreviousData,
   });
 }
 

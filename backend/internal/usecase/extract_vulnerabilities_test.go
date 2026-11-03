@@ -29,6 +29,9 @@ func (m *mockArticleRepo) Save(article domain.Article) error            { return
 func (m *mockArticleRepo) GetByID(id string) (*domain.Article, error)   { return nil, nil }
 func (m *mockArticleRepo) GetByURL(url string) (*domain.Article, error) { return nil, nil }
 func (m *mockArticleRepo) GetByDays(days int) ([]domain.Article, error) { return nil, nil }
+func (m *mockArticleRepo) GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error) {
+	return nil, 0, nil
+}
 
 type mockVulnerabilityRepo struct {
 	saveCalls []domain.Vulnerability

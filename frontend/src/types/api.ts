@@ -97,7 +97,7 @@ export interface paths {
         };
         /**
          * Get repository details
-         * @description Returns full details for a watched repository including its resolved dependency list and any CVE matches found against those dependencies.
+         * @description Returns full details for a watched repository including counts of dependencies and vulnerability matches.
          */
         get: operations["getRepositoryByID"];
         put?: never;
@@ -110,17 +110,14 @@ export interface paths {
     };
     "/repositories/{id}/matches": {
         parameters: {
-            query?: {
-                page?: number;
-                limit?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
         /**
          * Get paginated repository matches
-         * @description Returns paginated CVE matches found against a watched repository's dependencies.
+         * @description Returns paginated CVE matches found against a watched repository's dependencies. Use page and limit query parameters to control pagination.
          */
         get: operations["getRepositoryMatches"];
         put?: never;
@@ -133,17 +130,14 @@ export interface paths {
     };
     "/repositories/{id}/dependencies": {
         parameters: {
-            query?: {
-                page?: number;
-                limit?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
         /**
          * Get paginated repository dependencies
-         * @description Returns paginated dependencies detected in a watched repository's manifest.
+         * @description Returns paginated dependencies detected in a watched repository's manifest. Use page and limit query parameters to control pagination.
          */
         get: operations["getRepositoryDependencies"];
         put?: never;
@@ -457,7 +451,7 @@ export interface components {
              */
             created_at: string;
         };
-        /** @description Full detail view of a watched repository, including its resolved dependencies and any CVE matches found against them. */
+        /** @description Basic detail view of a watched repository, including counts of dependencies and CVE matches. Use the paginated endpoints to fetch the actual dependencies and matches. */
         RepositoryDetail: {
             /** @example 01HXYZ5678GHIJKL */
             id: string;
@@ -475,10 +469,91 @@ export interface components {
              * @description When the repository's dependency manifest was last fetched. Null if never fetched.
              */
             last_fetched_at?: string | null;
-            /** @description Total number of dependencies detected in the repository's manifest */
+            /**
+             * @description Total number of dependencies detected in the repository's manifest
+             * @example 1247
+             */
             dependency_count: number;
-            /** @description Total number of CVE matches found against this repository's dependencies */
+            /**
+             * @description Total number of CVE matches found against this repository's dependencies
+             * @example 15
+             */
             match_count: number;
+        };
+        /** @description Paginated response of security news articles */
+        PaginatedArticles: {
+            /** @description The articles for this page */
+            items: components["schemas"]["Article"][];
+            /**
+             * @description Total number of articles within the requested window
+             * @example 87
+             */
+            total: number;
+            /**
+             * @description Current page number (1-indexed)
+             * @example 1
+             */
+            page: number;
+            /**
+             * @description Number of articles per page
+             * @example 10
+             */
+            limit: number;
+            /**
+             * @description Total number of pages
+             * @example 9
+             */
+            total_pages: number;
+        };
+        /** @description Paginated response of repository dependencies */
+        PaginatedDependencies: {
+            /** @description The dependencies for this page */
+            items: components["schemas"]["RepositoryDependency"][];
+            /**
+             * @description Total number of dependencies
+             * @example 1247
+             */
+            total: number;
+            /**
+             * @description Current page number (1-indexed)
+             * @example 1
+             */
+            page: number;
+            /**
+             * @description Number of items per page
+             * @example 50
+             */
+            limit: number;
+            /**
+             * @description Total number of pages
+             * @example 25
+             */
+            total_pages: number;
+        };
+        /** @description Paginated response of vulnerability matches */
+        PaginatedMatches: {
+            /** @description The matches for this page */
+            items: components["schemas"]["Match"][];
+            /**
+             * @description Total number of matches
+             * @example 125
+             */
+            total: number;
+            /**
+             * @description Current page number (1-indexed)
+             * @example 1
+             */
+            page: number;
+            /**
+             * @description Number of items per page
+             * @example 20
+             */
+            limit: number;
+            /**
+             * @description Total number of pages
+             * @example 7
+             */
+            total_pages: number;
         };
         /** @description Request body for registering a new repository to watch */
         CreateRepositoryRequest: {
@@ -498,32 +573,6 @@ export interface components {
              * @enum {string}
              */
             git_provider: "Github.com" | "Bitbucket.com";
-        };
-        /** @description Paginated response of repository dependencies */
-        PaginatedDependencies: {
-            /** @description The dependencies for this page */
-            items: components["schemas"]["RepositoryDependency"][];
-            /** @description Total number of dependencies */
-            total: number;
-            /** @description Current page number (1-indexed) */
-            page: number;
-            /** @description Number of items per page */
-            limit: number;
-            /** @description Total number of pages */
-            total_pages: number;
-        };
-        /** @description Paginated response of vulnerability matches */
-        PaginatedMatches: {
-            /** @description The matches for this page */
-            items: components["schemas"]["Match"][];
-            /** @description Total number of matches */
-            total: number;
-            /** @description Current page number (1-indexed) */
-            page: number;
-            /** @description Number of items per page */
-            limit: number;
-            /** @description Total number of pages */
-            total_pages: number;
         };
         /** @description Acknowledgement returned immediately when a pipeline run is triggered */
         PipelineStartedResponse: {
@@ -615,6 +664,10 @@ export interface operations {
             query?: {
                 /** @description Number of days to look back when filtering articles. Must be a positive integer. Defaults to 7. */
                 days?: number;
+                /** @description Page number to return (1-indexed) */
+                page?: number;
+                /** @description Number of articles per page */
+                limit?: number;
             };
             header?: never;
             path?: never;
@@ -622,16 +675,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of articles published within the requested window */
+            /** @description Paginated articles published within the requested window */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Article"][];
+                    "application/json": components["schemas"]["PaginatedArticles"];
                 };
             };
-            /** @description The `days` parameter is not a valid positive integer */
+            /** @description The `days`, `page` or `limit` parameter is not valid */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -785,7 +838,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Repository detail with dependencies and vulnerability matches */
+            /** @description Repository detail with dependency and match counts */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -952,7 +1005,10 @@ export interface operations {
     };
     runPipeline: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Number of days to look back when harvesting articles. Defaults to 2 days if omitted. Capped at 30 — any value above 30 is silently reduced to 30. Must be a positive integer. */
+                days?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -966,6 +1022,20 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PipelineStartedResponse"];
+                };
+            };
+            /** @description Invalid query parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "days must be a positive integer"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
