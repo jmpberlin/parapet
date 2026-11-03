@@ -36,7 +36,7 @@ export function useSourceArticles(articleIDs: string[]): UseQueryResult<Article>
   // record carries a very large source_article_ids list
   return useQueries({
     queries: articleIDs.slice(0, MAX_SOURCE_ARTICLES).map((articleId) => ({
-      queryKey: ['article', articleId],
+      queryKey: ['articles', articleId],
       queryFn: () => getArticleByID(articleId),
       enabled: !!articleId,
     })),

@@ -10,11 +10,6 @@ import (
 
 const maxLookbackDays = 30
 
-// articles are stored at most once per year by the harvest pipeline; larger
-// windows would only widen the COUNT()/ORDER BY scan cost played back by any
-// caller that forwards untrusted `days` (e.g. ?days=2000000000)
-const maxArticleWindowDays = 365
-
 type PipelineRunner interface {
 	Run(customLookback time.Duration)
 	LastResult() *usecase.PipelineResult

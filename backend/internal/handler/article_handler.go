@@ -9,6 +9,11 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/internal/domain"
 )
 
+// articles are stored at most once per year by the harvest pipeline; larger
+// windows would only widen the COUNT()/ORDER BY scan cost played back by any
+// caller that forwards untrusted `days` (e.g. ?days=2000000000)
+const maxArticleWindowDays = 365
+
 type ArticleRepository interface {
 	GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error)
 	GetByID(id string) (*domain.Article, error)
