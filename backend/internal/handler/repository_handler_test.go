@@ -226,10 +226,6 @@ type mockArticleRepoForTests struct {
 	getErr    error
 }
 
-func (m *mockArticleRepoForTests) GetByDays(days int) ([]domain.Article, error) {
-	return m.articles, m.getErr
-}
-
 func (m *mockArticleRepoForTests) GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error) {
 	if m.getErr != nil {
 		return nil, 0, m.getErr

@@ -9,14 +9,6 @@ function sanitizeDays(days: number): number {
   return Math.max(1, Math.min(365, Math.floor(Number(days))));
 }
 
-export function getArticles(days = 7): Promise<Article[]> {
-  const sanitized = sanitizeDays(days);
-  if (isNaN(sanitized)) {
-    return Promise.reject(new ApiError(400, 'invalid days parameter'));
-  }
-  return apiFetch(`/articles?days=${sanitized}`);
-}
-
 export function getArticlesPaginated(
   days = 7,
   page = 1,

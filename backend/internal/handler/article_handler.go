@@ -10,7 +10,6 @@ import (
 )
 
 type ArticleRepository interface {
-	GetByDays(days int) ([]domain.Article, error)
 	GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error)
 	GetByID(id string) (*domain.Article, error)
 }
