@@ -62,6 +62,9 @@ func GetArticlesHandler(repo ArticleRepository) http.HandlerFunc {
 				http.Error(w, `{"error": "invalid days parameter"}`, http.StatusBadRequest)
 				return
 			}
+			if parsed > maxArticleWindowDays {
+				parsed = maxArticleWindowDays
+			}
 			days = parsed
 		}
 

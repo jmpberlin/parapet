@@ -221,6 +221,7 @@ func TestCalculateTotalPages_LargeNumbers(t *testing.T) {
 type mockArticleRepoForTests struct {
 	articles  []domain.Article
 	total     int
+	lastDays  int
 	lastPage  int
 	lastLimit int
 	getErr    error
@@ -230,6 +231,7 @@ func (m *mockArticleRepoForTests) GetByDaysPaginated(days, page, limit int) ([]d
 	if m.getErr != nil {
 		return nil, 0, m.getErr
 	}
+	m.lastDays = days
 	m.lastPage = page
 	m.lastLimit = limit
 	return m.articles, m.total, nil
@@ -289,6 +291,22 @@ func TestGetArticlesHandler_DefaultPagination(t *testing.T) {
 	}
 	if repo.lastPage != 1 || repo.lastLimit != 10 {
 		t.Errorf("expected page=1 limit=10, got page=%d limit=%d", repo.lastPage, repo.lastLimit)
+	}
+}
+
+func TestGetArticlesHandler_ClampsExcessiveDays(t *testing.T) {
+	repo := &mockArticleRepoForTests{}
+
+	req := httptest.NewRequest(http.MethodGet, "/articles?days=2000000000", nil)
+	rec := httptest.NewRecorder()
+
+	GetArticlesHandler(repo).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if repo.lastDays != maxArticleWindowDays {
+		t.Errorf("expected days clamped to %d, got %d", maxArticleWindowDays, repo.lastDays)
 	}
 }
 
