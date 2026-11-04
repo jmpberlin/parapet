@@ -12,9 +12,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jmpberlin/nightwatch/backend/docs"
-	"github.com/jmpberlin/nightwatch/backend/internal/adapter/claude"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/crawler"
 	"github.com/jmpberlin/nightwatch/backend/internal/adapter/github"
+	"github.com/jmpberlin/nightwatch/backend/internal/adapter/llm"
 	"github.com/jmpberlin/nightwatch/backend/internal/handler"
 	"github.com/jmpberlin/nightwatch/backend/internal/repository/postgres"
 	"github.com/jmpberlin/nightwatch/backend/internal/usecase"
@@ -116,12 +116,20 @@ func main() {
 	bcScraper := crawler.NewBCScraper()
 	socketDevScraper := crawler.NewSocketDevScraper()
 	crawlerOrchestrator := crawler.NewCrawlerOrchestrator([]crawler.SourceScraper{bcScraper, socketDevScraper})
-	claudeClient := claude.NewClaudeClient(getEnv("CLAUDE_API_KEY", ""))
+	llmCfg, err := llm.ConfigFromEnv(os.Getenv)
+	if err != nil {
+		log.Fatalf("invalid LLM configuration: %v", err)
+	}
+	extractor, err := llm.New(llmCfg)
+	if err != nil {
+		log.Fatalf("failed to create vulnerability extractor: %v", err)
+	}
+	slog.Info("vulnerability extractor configured", llmCfg.LogFields()...)
 	githubClient := github.NewGithubClient(getEnv("GITHUB_TOKEN", ""))
 
 	// usecases
 	harvestUC := usecase.NewHarvestArticlesUseCase(articleRepo, crawlerOrchestrator, 48*time.Hour)
-	extractUC := usecase.NewExtractVulnerabilitiesUseCase(vulnRepo, articleRepo, claudeClient)
+	extractUC := usecase.NewExtractVulnerabilitiesUseCase(vulnRepo, articleRepo, extractor)
 	updateDepsUC := usecase.NewUpdateDependenciesUseCase(watchedRepositoriesRepo, depRepo, githubClient)
 	matchUC := usecase.NewMatchVulnerabilitiesUseCase(watchedRepositoriesRepo, depRepo, vulnRepo, matchRepo)
 

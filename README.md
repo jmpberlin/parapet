@@ -12,7 +12,7 @@ And the API specs on [parapet.digital/api/docs/index.html](https://parapet.digit
 The pipeline runs four stages on a schedule:
 
 1. **Harvest** — crawls security news sources (BleepingComputer, Hacker News) for new articles
-2. **Extract** — sends article content to the Claude API which extracts vulnerabilities, CVEs, affected technologies and severity using structured tool use
+2. **Extract** — sends article content to an LLM (Anthropic or any OpenAI-compatible API such as TensorX, selected via `LLM_PROVIDER`) which extracts vulnerabilities, CVEs, affected technologies and severity using structured tool use
 3. **Update dependencies** — fetches your repository's dependencies from GitHub's SBOM endpoint
 4. **Match** — cross-references extracted vulnerabilities against your dependencies using PURL and name matching
 
@@ -36,7 +36,7 @@ Work in progress. This is a portfolio project — the pipeline runs and data flo
 
 ## Running Locally
 
-Copy `.env.example` to `.env` and fill in the required values: Postgres credentials, a Claude API key, and a GitHub fine-grained personal access token. Then start the stack with Docker Compose:
+Copy `.env.example` to `.env` and fill in the required values: Postgres credentials, the LLM provider settings (`LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL`), and a GitHub fine-grained personal access token. Then start the stack with Docker Compose:
 
 \```
 docker compose up --build

@@ -150,10 +150,21 @@ No manual `.env` creation — the workflow writes it fresh on every deploy, same
 **`parapet` repo — repo-level** (shared with dev, see `DEPLOY_DEV.md` Phase 13): `BACKEND_HOST`, `BACKEND_HOST_PORT`, `BACKEND_PORT`, `FRONTEND_HOST_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `VITE_API_URL`.
 
 **`parapet` repo — `prod` Environment:**
-- Secrets: `CI_RUNNER_SSH_KEY`, `CLAUDE_API_KEY`, `GRAFANA_PASSWORD`, `PAT_GITHUB`, `POSTGRES_PASSWORD`, `ADMINER_BEARER`
-- Variables: `SERVER_PUBLIC_IP`, `GRAFANA_ROOT_URL`
+- Secrets: `CI_RUNNER_SSH_KEY`, `GRAFANA_PASSWORD`, `PAT_GITHUB`, `POSTGRES_PASSWORD`, `ADMINER_BEARER`, `LLM_API_KEY` (prod's own key — never the dev one)
+- Variables: `SERVER_PUBLIC_IP`, `GRAFANA_ROOT_URL`, `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL`
 
-Same secret/variable *names* as dev's environment where they overlap (`CI_RUNNER_SSH_KEY`, `CLAUDE_API_KEY`, etc.) — deliberately, so the workflow YAML reads identically in shape between the two files, differing only in which Environment block is active. Values are entirely separate per environment; nothing is shared except `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` (repo-level, dev-only concept — prod has no Tailscale involvement at all).
+**LLM provider for vulnerability extraction** (read by `backend/internal/adapter/llm/llm.go`; the backend refuses to start if a required one is missing, and logs provider/model/base URL — never the key — at startup):
+
+| Name | Kind | Example | Notes |
+|---|---|---|---|
+| `LLM_PROVIDER` | Variable | `anthropic` / `openai` | Required. API standard to speak: `anthropic` (Claude) or `openai` (OpenAI or any compatible provider, e.g. TensorX). |
+| `LLM_API_KEY` | Secret | Anthropic or TensorX key | Required. Key of the selected provider. |
+| `LLM_MODEL` | Variable | `claude-haiku-4-5` / `z-ai/glm-5.3-flash` | Required. Model id as the provider names it. |
+| `LLM_BASE_URL` | Variable | `https://api.tensorx.ai/v1` | Required for `openai`; optional for `anthropic` (defaults to the official API). |
+
+Prod has no egress restriction, so no allowlist change is needed for a new provider. Switching provider (or rolling back) is an env change only: update the four values and redeploy.
+
+Same secret/variable *names* as dev's environment where they overlap (`CI_RUNNER_SSH_KEY`, `LLM_API_KEY`, etc.) — deliberately, so the workflow YAML reads identically in shape between the two files, differing only in which Environment block is active. Values are entirely separate per environment; nothing is shared except `TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET` (repo-level, dev-only concept — prod has no Tailscale involvement at all).
 
 ## 13. `.github/workflows/deploy.yml`
 
@@ -196,16 +207,21 @@ jobs:
         run: envsubst '$ADMINER_BEARER' < Caddyfile.template > Caddyfile
         env:
           ADMINER_BEARER: ${{ secrets.ADMINER_BEARER }}
-
+      
+      - name: Write CI deploy key
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/ci_runner_key
+          echo "${{ secrets.CI_RUNNER_SSH_KEY }}" > ~/.ssh/ci_runner_key
+      
       - name: Deploy Caddyfile
         run: |
-          cat Caddyfile | ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+          cat Caddyfile | ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             root@${{ vars.SERVER_PUBLIC_IP }} \
             'cat > /etc/caddy/Caddyfile && systemctl reload caddy'
 
       - name: Write .env
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             root@${{ vars.SERVER_PUBLIC_IP }} "cat > /opt/parapet/.env" <<EOF
           POSTGRES_USER=${{ vars.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
@@ -215,7 +231,10 @@ jobs:
           BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
           BACKEND_HOST=${{ vars.BACKEND_HOST }}
           FRONTEND_HOST_PORT=${{ vars.FRONTEND_HOST_PORT }}
-          CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
+          LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL=${{ vars.LLM_BASE_URL }}
+          LLM_MODEL=${{ vars.LLM_MODEL }}
           GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
           VITE_API_URL=${{ vars.VITE_API_URL }}
           GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
@@ -224,7 +243,7 @@ jobs:
 
       - name: Deploy app
         run: |
-          ssh -o StrictHostKeyChecking=accept-new -i <(echo "${{ secrets.CI_RUNNER_SSH_KEY }}") \
+          ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
             root@${{ vars.SERVER_PUBLIC_IP }} "bash -euo pipefail -s" <<EOF
             cd /opt/parapet
             git pull origin main
