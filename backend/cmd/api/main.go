@@ -120,7 +120,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("invalid LLM configuration: %v", err)
 	}
-	extractor, err := llm.New(llmCfg)
+	extractorLLM, err := llm.New(llmCfg)
 	if err != nil {
 		log.Fatalf("failed to create vulnerability extractor: %v", err)
 	}
@@ -129,7 +129,7 @@ func main() {
 
 	// usecases
 	harvestUC := usecase.NewHarvestArticlesUseCase(articleRepo, crawlerOrchestrator, 48*time.Hour)
-	extractUC := usecase.NewExtractVulnerabilitiesUseCase(vulnRepo, articleRepo, extractor)
+	extractUC := usecase.NewExtractVulnerabilitiesUseCase(vulnRepo, articleRepo, extractorLLM)
 	updateDepsUC := usecase.NewUpdateDependenciesUseCase(watchedRepositoriesRepo, depRepo, githubClient)
 	matchUC := usecase.NewMatchVulnerabilitiesUseCase(watchedRepositoriesRepo, depRepo, vulnRepo, matchRepo)
 
