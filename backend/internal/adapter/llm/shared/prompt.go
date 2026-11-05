@@ -29,6 +29,8 @@ For each affected technology provide:
   - composer: pkg:composer/laravel/framework@9.0.0
   Leave empty string if unknown.
 - VersionRange: affected version range, e.g. "<2.1.0" or ">=1.0.0 <1.5.0". Leave empty if unknown.
+Names are compared case-sensitively by the matching stage, so use the official
+mixed-case spelling of the package (as published by its ecosystem) exactly.
 For each affected technology, research the official package name and provide
 the PURL. For example if the article mentions "Apache Log4j", the PURL is
 pkg:maven/org.apache.logging.log4j/log4j-core.

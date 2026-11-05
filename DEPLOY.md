@@ -207,12 +207,12 @@ jobs:
         run: envsubst '$ADMINER_BEARER' < Caddyfile.template > Caddyfile
         env:
           ADMINER_BEARER: ${{ secrets.ADMINER_BEARER }}
-      
+
       - name: Write CI deploy key
         run: |
           install -m 600 -D /dev/null ~/.ssh/ci_runner_key
           echo "${{ secrets.CI_RUNNER_SSH_KEY }}" > ~/.ssh/ci_runner_key
-      
+
       - name: Deploy Caddyfile
         run: |
           cat Caddyfile | ssh -o StrictHostKeyChecking=accept-new -i ~/.ssh/ci_runner_key \
