@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Parapet monitors security news and alerts when a vulnerability affects a library a tracked GitHub repository depends on. It runs a four-stage pipeline on a schedule: **Harvest → Extract → UpdateDeps → Match**.
 
 - **Harvest** — crawls BleepingComputer and Socket.dev for new articles
-- **Extract** — sends article content to the Claude API (claude-haiku-4-5, forced tool use) to extract vulnerabilities, CVEs, affected technologies, and severity
+- **Extract** — sends article content to an LLM (Anthropic or any OpenAI-compatible API such as TensorX, selected via `LLM_PROVIDER`) with a forced `extract_vulnerabilities` tool call to extract vulnerabilities, CVEs, affected technologies, and severity
 - **UpdateDeps** — fetches repository dependencies from GitHub's SBOM/dependency graph endpoint
 - **Match** — cross-references extracted vulnerabilities against watched-repository dependencies using a four-tier matching algorithm (PURL → namespace → package name → keyword), then applies version range checks via semver
 
@@ -37,7 +37,7 @@ npm run generate:types  # regenerate src/types/api.ts from ../backend/openapi.ya
 
 **Full stack (Docker Compose):**
 ```bash
-cp .env.example .env   # fill in POSTGRES_*, CLAUDE_API_KEY, GITHUB_TOKEN
+cp .env.example .env   # fill in POSTGRES_*, LLM_*, GITHUB_TOKEN
 docker compose up --build
 # backend at http://localhost:8080, Swagger at http://localhost:8080/docs/
 ```
@@ -62,7 +62,11 @@ internal/
     normalize.go             — PURL parsing and keyword tokenisation; NormalizedIdentifier is central to matching
     interfaces.go            — all repository + adapter interfaces used by use cases
   adapter/
-    claude/client.go         — calls Claude API with forced `extract_vulnerabilities` tool use; processes articles concurrently with semaphore (max 5)
+    llm/                     — vulnerability extraction via LLMs
+      llm.go                 — ConfigFromEnv (LLM_* vars) + New(cfg): picks the provider adapter
+      shared/                — provider-independent: system prompt, tool JSON schema, payload DTO → domain conversion, 5-way concurrent fan-out
+      anthropic/             — Anthropic extractor (anthropic-sdk-go, forced tool use)
+      openai/                — OpenAI-standard extractor for any compatible API, e.g. TensorX (openai-go SDK + base URL, forced function call)
     crawler/                 — BCScraper and SocketDevScraper implement SourceScraper; CrawlerOrchestrator fans out
     github/client.go         — fetches SBOM from GitHub dependency graph API
   repository/postgres/       — SQL implementations of all usecase interfaces; migrations embedded via go:embed
@@ -99,4 +103,4 @@ Production: Hetzner VPS, Caddy as reverse proxy (auto TLS). CI/CD via GitHub Act
 
 ## Environment variables
 
-See `.env.example`. Required: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `CLAUDE_API_KEY`, `GITHUB_TOKEN`. Optional: `BACKEND_PORT`, `BACKEND_HOST`, `BACKEND_HOST_PORT`, `GRAFANA_PASSWORD`.
+See `.env.example`. Required: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `GITHUB_TOKEN`, and the extraction LLM settings `LLM_PROVIDER` (`anthropic` | `openai`), `LLM_API_KEY`, `LLM_MODEL`, plus `LLM_BASE_URL` for `openai` — documented and validated in `backend/internal/adapter/llm/llm.go`. Optional: `BACKEND_PORT`, `BACKEND_HOST`, `BACKEND_HOST_PORT`, `GRAFANA_PASSWORD`.

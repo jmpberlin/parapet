@@ -63,7 +63,10 @@ jobs:
           BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
           BACKEND_HOST=${{ vars.BACKEND_HOST }}
           FRONTEND_HOST_PORT=${{ vars.FRONTEND_HOST_PORT }}
-          CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
+          LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL=${{ vars.LLM_BASE_URL }}
+          LLM_MODEL=${{ vars.LLM_MODEL }}
           GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
           VITE_API_URL=${{ vars.VITE_API_URL }}
           GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
