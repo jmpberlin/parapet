@@ -168,6 +168,7 @@ acl allowed_dst dstdomain \
     .githubusercontent.com \
     ghcr.io \
     api.anthropic.com \
+    api.tensorx.ai \
     .bleepingcomputer.com \
     socket.dev \
     .docker.io \
@@ -283,6 +284,8 @@ This compose file is **shared between dev and prod** — differences are express
       - HTTPS_PROXY=${GATEWAY_HTTPS_PROXY:-}
       - NO_PROXY=postgres,localhost,127.0.0.1
 ```
+The backend also receives the `LLM_*` variables (`LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL`) that select the extraction provider — see Phase 13. The `openai` adapter (official openai-go SDK) uses Go's default HTTP transport, which honours `HTTPS_PROXY`, so its traffic goes through Squid like everything else; the provider's host (e.g. `api.tensorx.ai`) must be on the allowlist.
+
 On dev, `.env` sets `GATEWAY_HTTP_PROXY=http://<gateway-private-ip>:3128` (full URL, scheme included) — **do not** prepend an extra `http://` in the compose file itself, or the resulting value doubles up (`http://http://...`) and breaks. On prod, these are simply never set in `.env`, and the `:-` fallback correctly resolves to an empty string, meaning "no proxy" — not a broken one.
 
 **Port bindings** — `127.0.0.1`-only (leftover from an earlier design where `tailscale serve` ran locally on the box) is unreachable from anywhere else, including the private network. All app-facing services bind to **both** loopback and the dev box's private IP:
@@ -333,7 +336,10 @@ Earlier versions of this doc described manually creating `.env` on the box. **Th
           BACKEND_HOST_PORT=${{ vars.BACKEND_HOST_PORT }}
           BACKEND_HOST=${{ vars.BACKEND_HOST }}
           FRONTEND_HOST_PORT=${{ vars.FRONTEND_HOST_PORT }}
-          CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
+          LLM_PROVIDER=${{ vars.LLM_PROVIDER }}
+          LLM_API_KEY=${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL=${{ vars.LLM_BASE_URL }}
+          LLM_MODEL=${{ vars.LLM_MODEL }}
           GITHUB_TOKEN=${{ secrets.PAT_GITHUB }}
           VITE_API_URL=${{ vars.VITE_API_URL }}
           GRAFANA_PASSWORD=${{ secrets.GRAFANA_PASSWORD }}
@@ -356,8 +362,19 @@ GitHub Environments (`dev` and, separately for prod, `prod`) hold anything whose
 - Variables: `BACKEND_HOST`, `BACKEND_HOST_PORT`, `BACKEND_PORT`, `FRONTEND_HOST_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PORT`, `VITE_API_URL`
 
 **`parapet` repo — `dev` Environment:**
-- Secrets: `CI_RUNNER_SSH_KEY`, `CLAUDE_API_KEY`, `GRAFANA_PASSWORD`, `PAT_GITHUB`, `POSTGRES_PASSWORD`
-- Variables: `GATEWAY_HTTP_PROXY`, `GATEWAY_HTTPS_PROXY`, `SERVER_PRIVATE_IP`
+- Secrets: `CI_RUNNER_SSH_KEY`, `GRAFANA_PASSWORD`, `PAT_GITHUB`, `POSTGRES_PASSWORD`, `LLM_API_KEY` (dev's own key — never the prod one)
+- Variables: `GATEWAY_HTTP_PROXY`, `GATEWAY_HTTPS_PROXY`, `SERVER_PRIVATE_IP`, `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL`
+
+**LLM provider for vulnerability extraction** (read by `backend/internal/adapter/llm/llm.go`; the backend refuses to start if a required one is missing, and logs provider/model/base URL — never the key — at startup):
+
+| Name | Kind | Example | Notes |
+|---|---|---|---|
+| `LLM_PROVIDER` | Variable | `anthropic` / `openai` | Required. API standard to speak: `anthropic` (Claude) or `openai` (OpenAI or any compatible provider, e.g. TensorX). |
+| `LLM_API_KEY` | Secret | Anthropic or TensorX key | Required. Key of the selected provider. |
+| `LLM_MODEL` | Variable | `claude-haiku-4-5` / `z-ai/glm-5.3-flash` | Required. Model id as the provider names it. |
+| `LLM_BASE_URL` | Variable | `https://api.tensorx.ai/v1` | Required for `openai`; optional for `anthropic` (defaults to the official API). |
+
+Switching provider (or rolling back) is an env change only: update the four values and redeploy.
 
 (See `DEPLOY.md` for the parallel `prod` Environment — same secret/variable *names* where they overlap, different values, plus a few prod-only entries like `ADMINER_BEARER`.)
 
