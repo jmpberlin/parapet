@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "generate:types": "openapi-typescript ../backend/openapi.yaml -o src/types/api.ts",
+    "generate:types": "openapi-typescript ../backend/docs/openapi.yaml -o src/types/api.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },

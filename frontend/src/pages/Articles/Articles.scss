@@ -24,6 +24,12 @@
     list-style: none;
     display: flex;
     flex-direction: column;
+    transition: opacity 0.2s;
+
+    &--fetching {
+      opacity: 0.4;
+      pointer-events: none;
+    }
   }
 
   &__item {

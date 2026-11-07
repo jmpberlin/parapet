@@ -103,16 +103,27 @@ func (r *ArticleRepository) MarkProcessed(id string) error {
 	return nil
 }
 
-func (r *ArticleRepository) GetByDays(days int) ([]domain.Article, error) {
+func (r *ArticleRepository) GetByDaysPaginated(days, page, limit int) ([]domain.Article, int, error) {
+	var total int
+	err := r.db.QueryRow(`
+		SELECT COUNT(*) FROM articles
+		WHERE published_at >= NOW() - ($1 * INTERVAL '1 day')
+	`, days).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count articles by days: %w", err)
+	}
+
+	offset := (page - 1) * limit
 	rows, err := r.db.Query(`
 		SELECT id, source_url, host_domain, headline, author, content_html,
 		       content_cleaned, published_at, crawled_at, processed_at, updated_at
 		FROM articles
 		WHERE published_at >= NOW() - ($1 * INTERVAL '1 day')
-		ORDER BY published_at DESC
-	`, days)
+		ORDER BY published_at DESC, id
+		LIMIT $2 OFFSET $3
+	`, days, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get articles by days: %w", err)
+		return nil, 0, fmt.Errorf("failed to get paginated articles by days: %w", err)
 	}
 	defer rows.Close()
 
@@ -123,9 +134,9 @@ func (r *ArticleRepository) GetByDays(days int) ([]domain.Article, error) {
 			&a.ContentHTML, &a.ContentCleaned, &a.PublishedAt, &a.CrawledAt,
 			&a.ProcessedAt, &a.UpdatedAt)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan article: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan article: %w", err)
 		}
 		articles = append(articles, a)
 	}
-	return articles, nil
+	return articles, total, nil
 }

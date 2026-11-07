@@ -244,6 +244,23 @@
     list-style: none;
     display: flex;
     flex-direction: column;
+    transition: opacity 0.2s;
+
+    &--fetching {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+  }
+
+  &__spinner {
+    width: 1rem;
+    height: 1rem;
+    margin: 0.5rem auto 0;
+    display: block;
+    border: 2px solid rgba(45, 113, 65, 0.2);
+    border-top-color: $secondary-color;
+    border-radius: 50%;
+    animation: repos-spin 0.7s linear infinite;
   }
 
   &__date {
@@ -396,41 +413,10 @@
     opacity: 0.4;
     margin: 0;
   }
+}
 
-  &__pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-    padding: 1rem 0 0 0;
-    border-top: 1px solid rgba(45, 113, 65, 0.08);
-    margin-top: auto;
-  }
-
-  &__pagination-btn {
-    padding: 0.5rem 0.75rem;
-    background-color: transparent;
-    border: 1px solid $secondary-color;
-    color: $secondary-color;
-    font-size: 0.75rem;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s;
-
-    &:hover:not(:disabled) {
-      background-color: rgba(45, 113, 65, 0.08);
-    }
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-  }
-
-  &__pagination-info {
-    font-size: 0.75rem;
-    color: $secondary-color;
-    opacity: 0.6;
-    white-space: nowrap;
+@keyframes repos-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

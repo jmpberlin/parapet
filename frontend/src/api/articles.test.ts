@@ -1,36 +1,36 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { getArticles, getArticleByID } from './articles';
+import { getArticlesPaginated, getArticleByID } from './articles';
 import { ApiError } from './client';
 
-describe('getArticles', () => {
+describe('getArticlesPaginated', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
   });
 
-  test('calls correct URL with default days', async () => {
+  test('calls correct URL with default days, page and limit', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => [],
+      json: async () => ({ items: [], total: 0, page: 1, limit: 10, total_pages: 1 }),
     } as Response);
 
-    await getArticles();
+    await getArticlesPaginated();
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/articles?days=7'),
+      expect.stringMatching(/\/articles\?days=7&page=1&limit=10/),
       expect.any(Object),
     );
   });
 
-  test('calls correct URL with provided days', async () => {
+  test('calls correct URL with custom page and limit', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => [],
+      json: async () => ({ items: [], total: 0, page: 3, limit: 25, total_pages: 1 }),
     } as Response);
 
-    await getArticles(30);
+    await getArticlesPaginated(7, 3, 25);
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/articles?days=30'),
+      expect.stringMatching(/\/articles\?days=7&page=3&limit=25/),
       expect.any(Object),
     );
   });
@@ -38,39 +38,58 @@ describe('getArticles', () => {
   test('clamps days to 365 maximum', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => [],
+      json: async () => ({ items: [], total: 0, page: 1, limit: 10, total_pages: 1 }),
     } as Response);
 
-    await getArticles(999);
+    await getArticlesPaginated(999);
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/articles?days=365'),
+      expect.stringMatching(/\/articles\?days=365&page=1&limit=10/),
       expect.any(Object),
     );
   });
 
-  test('clamps days to 1 minimum', async () => {
+  test('clamps days below 1 up to 1', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => [],
+      json: async () => ({ items: [], total: 0, page: 1, limit: 10, total_pages: 1 }),
     } as Response);
 
-    await getArticles(-5);
+    await getArticlesPaginated(0);
 
     expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/articles?days=1'),
+      expect.stringMatching(/\/articles\?days=1&page=1&limit=10/),
       expect.any(Object),
     );
+  });
+
+  test('floors fractional days', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [], total: 0, page: 1, limit: 10, total_pages: 1 }),
+    } as Response);
+
+    await getArticlesPaginated(7.9);
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/\/articles\?days=7&page=1&limit=10/),
+      expect.any(Object),
+    );
+  });
+
+  test('rejects with ApiError for NaN days without calling fetch', async () => {
+    await expect(getArticlesPaginated(NaN)).rejects.toBeInstanceOf(ApiError);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   test('throws ApiError on 400', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: false,
       status: 400,
-      json: async () => ({ error: 'invalid days parameter' }),
+      json: async () => ({ error: 'invalid pagination parameters' }),
     } as Response);
 
-    await expect(getArticles(0)).rejects.toBeInstanceOf(ApiError);
+    await expect(getArticlesPaginated(0)).rejects.toBeInstanceOf(ApiError);
   });
 });
 

@@ -6,9 +6,10 @@ import {
   useRepositoryMatches,
   useRepositoryDependencies,
 } from '../../hooks/useRepositories';
-import { useArticles } from '../../hooks/useArticles';
+import { useArticlesPaginated } from '../../hooks/useArticles';
 import { usePipelineStatus, useRunPipeline } from '../../hooks/usePipeline';
 import DashboardCard from '../../components/DashboardCard/DashboardCard';
+import Pagination from '../../components/Pagination/Pagination';
 import './Repositories.scss';
 
 function fmt(iso: string | null | undefined): string {
@@ -33,19 +34,33 @@ function Repositories() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [matchesPage, setMatchesPage] = useState(1);
   const [dependenciesPage, setDependenciesPage] = useState(1);
+  const [scannedPage, setScannedPage] = useState(1);
 
   const effectiveId = selectedId ?? repos?.[0]?.id ?? null;
 
+  const selectRepository = (id: string) => {
+    if (id === effectiveId) return;
+    setSelectedId(id);
+    setMatchesPage(1);
+    setDependenciesPage(1);
+  };
+
   const { data: repo, isLoading: repoLoading } = useRepository(effectiveId ?? '');
-  const { data: matches, isLoading: matchesLoading } = useRepositoryMatches(
-    effectiveId ?? '',
-    matchesPage,
-  );
-  const { data: dependencies, isLoading: dependenciesLoading } = useRepositoryDependencies(
-    effectiveId ?? '',
-    dependenciesPage,
-  );
-  const { data: articles, isLoading: articlesLoading } = useArticles(7);
+  const {
+    data: matches,
+    isLoading: matchesLoading,
+    isFetching: matchesFetching,
+  } = useRepositoryMatches(effectiveId ?? '', matchesPage);
+  const {
+    data: dependencies,
+    isLoading: dependenciesLoading,
+    isFetching: dependenciesFetching,
+  } = useRepositoryDependencies(effectiveId ?? '', dependenciesPage);
+  const {
+    data: scanned,
+    isLoading: scannedLoading,
+    isFetching: scannedFetching,
+  } = useArticlesPaginated(7, scannedPage);
   const { data: pipeline } = usePipelineStatus();
   const { mutate: runPipeline, isPending: isStarting } = useRunPipeline();
 
@@ -67,7 +82,7 @@ function Repositories() {
                 <li
                   key={r.id}
                   className={`repos__repo-item${effectiveId === r.id ? ' repos__repo-item--active' : ''}`}
-                  onClick={() => setSelectedId(r.id)}
+                  onClick={() => selectRepository(r.id)}
                 >
                   <div className='repos__repo-item-name'>
                     <span className='repos__repo-owner'>{r.owner_name}</span>
@@ -178,7 +193,9 @@ function Repositories() {
               </p>
             ) : (
               <>
-                <ul className='repos__list'>
+                <ul
+                  className={`repos__list${matchesFetching ? ' repos__list--fetching' : ''}`}
+                >
                   {matches.items.map((match) => (
                     <li key={match.id} className='repos__match-item'>
                       <span
@@ -200,26 +217,16 @@ function Repositories() {
                     </li>
                   ))}
                 </ul>
+                {matchesFetching && (
+                  <span className='repos__spinner' aria-label='Loading' />
+                )}
                 {matches && matches.total_pages > 1 && (
-                  <div className='repos__pagination'>
-                    <button
-                      className='repos__pagination-btn'
-                      onClick={() => setMatchesPage((p) => Math.max(1, p - 1))}
-                      disabled={matchesPage === 1}
-                    >
-                      ← Previous
-                    </button>
-                    <span className='repos__pagination-info'>
-                      Page {matchesPage} of {matches.total_pages}
-                    </span>
-                    <button
-                      className='repos__pagination-btn'
-                      onClick={() => setMatchesPage((p) => Math.min(matches.total_pages, p + 1))}
-                      disabled={matchesPage === matches.total_pages}
-                    >
-                      Next →
-                    </button>
-                  </div>
+                  <Pagination
+                    page={matchesPage}
+                    totalPages={matches.total_pages}
+                    onChange={setMatchesPage}
+                    disabled={matchesFetching}
+                  />
                 )}
               </>
             )}
@@ -236,7 +243,9 @@ function Repositories() {
               <p className='repos__empty'>No dependencies found.</p>
             ) : (
               <>
-                <ul className='repos__list'>
+                <ul
+                  className={`repos__list${dependenciesFetching ? ' repos__list--fetching' : ''}`}
+                >
                   {dependencies.items.map((dep) => (
                     <li key={dep.id} className='repos__dep-item'>
                       <span className='repos__dep-name'>{dep.name}</span>
@@ -246,54 +255,59 @@ function Repositories() {
                     </li>
                   ))}
                 </ul>
+                {dependenciesFetching && (
+                  <span className='repos__spinner' aria-label='Loading' />
+                )}
                 {dependencies && dependencies.total_pages > 1 && (
-                  <div className='repos__pagination'>
-                    <button
-                      className='repos__pagination-btn'
-                      onClick={() => setDependenciesPage((p) => Math.max(1, p - 1))}
-                      disabled={dependenciesPage === 1}
-                    >
-                      ← Previous
-                    </button>
-                    <span className='repos__pagination-info'>
-                      Page {dependenciesPage} of {dependencies.total_pages}
-                    </span>
-                    <button
-                      className='repos__pagination-btn'
-                      onClick={() => setDependenciesPage((p) => Math.min(dependencies.total_pages, p + 1))}
-                      disabled={dependenciesPage === dependencies.total_pages}
-                    >
-                      Next →
-                    </button>
-                  </div>
+                  <Pagination
+                    page={dependenciesPage}
+                    totalPages={dependencies.total_pages}
+                    onChange={setDependenciesPage}
+                    disabled={dependenciesFetching}
+                  />
                 )}
               </>
             )}
           </DashboardCard>
 
-          <DashboardCard title='Scanned' count={articles?.length} fixedHeight scrollable>
-            {articlesLoading ? (
+          <DashboardCard title='Scanned' count={scanned?.total} fixedHeight>
+            {scannedLoading ? (
               <p className='repos__empty'>Loading…</p>
-            ) : !articles || articles.length === 0 ? (
+            ) : !scanned || scanned.items.length === 0 ? (
               <p className='repos__empty'>
                 No articles in the last 7 days.
               </p>
             ) : (
-              <ul className='repos__list'>
-                {articles.map((article) => (
-                  <li key={article.id} className='repos__article-item'>
-                    <Link
-                      to={`/articles/${article.id}`}
-                      className='repos__article-link'
-                    >
-                      {truncate(article.headline)}
-                    </Link>
-                    <span className='repos__article-meta'>
-                      {article.host_domain} · {fmt(article.published_at)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul
+                  className={`repos__list${scannedFetching ? ' repos__list--fetching' : ''}`}
+                >
+                  {scanned.items.map((article) => (
+                    <li key={article.id} className='repos__article-item'>
+                      <Link
+                        to={`/articles/${article.id}`}
+                        className='repos__article-link'
+                      >
+                        {truncate(article.headline)}
+                      </Link>
+                      <span className='repos__article-meta'>
+                        {article.host_domain} · {fmt(article.published_at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {scannedFetching && (
+                  <span className='repos__spinner' aria-label='Loading' />
+                )}
+                {scanned.total_pages > 1 && (
+                  <Pagination
+                    page={scannedPage}
+                    totalPages={scanned.total_pages}
+                    onChange={setScannedPage}
+                    disabled={scannedFetching}
+                  />
+                )}
+              </>
             )}
           </DashboardCard>
         </div>

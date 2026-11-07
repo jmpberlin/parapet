@@ -60,17 +60,34 @@ paths:
             minimum: 1
             default: 7
             example: 30
+        - name: page
+          in: query
+          description: Page number to return (1-indexed)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+            example: 1
+        - name: limit
+          in: query
+          description: Number of articles per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+            example: 10
       responses:
         '200':
-          description: List of articles published within the requested window
+          description: Paginated articles published within the requested window
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Article'
+                $ref: '#/components/schemas/PaginatedArticles'
         '400':
-          description: The `days` parameter is not a valid positive integer
+          description: The `days`, `page` or `limit` parameter is not valid
           content:
             application/json:
               schema:
@@ -772,6 +789,33 @@ components:
           example: 15
       required:
         [id, owner_name, repository_name, git_provider, dependency_count, match_count]
+
+    PaginatedArticles:
+      type: object
+      description: Paginated response of security news articles
+      properties:
+        items:
+          type: array
+          description: The articles for this page
+          items:
+            $ref: '#/components/schemas/Article'
+        total:
+          type: integer
+          description: Total number of articles within the requested window
+          example: 87
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+          example: 1
+        limit:
+          type: integer
+          description: Number of articles per page
+          example: 10
+        total_pages:
+          type: integer
+          description: Total number of pages
+          example: 9
+      required: [items, total, page, limit, total_pages]
 
     PaginatedDependencies:
       type: object
