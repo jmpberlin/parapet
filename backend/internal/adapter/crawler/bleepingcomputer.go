@@ -34,7 +34,7 @@ func (s *BCScraper) FetchArticles(since time.Time) ([]domain.Article, error) {
 	}
 	articles, extractErrs := s.extractArticleList(since, doc)
 
-	articles, contentErrs := s.addArticleContent(articles)
+	_, contentErrs := s.addArticleContent(articles)
 	allErrs := append(extractErrs, contentErrs...)
 
 	if allErrs.HasErrors() {

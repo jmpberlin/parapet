@@ -1,9 +1,10 @@
 package crawler
 
 import (
-	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -12,7 +13,10 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/internal/domain"
 )
 
-const socketBaseURL = "https://socket.dev"
+const (
+	socketBaseURL  = "https://socket.dev"
+	socketFeedPath = "/api/blog/feed.atom"
+)
 
 type SocketDevScraper struct {
 	baseURL string
@@ -26,125 +30,208 @@ func (s *SocketDevScraper) Name() string {
 	return "Socket.dev"
 }
 
-type socketListingNextData struct {
-	Props struct {
-		PageProps struct {
-			Posts []socketPost `json:"posts"`
-		} `json:"pageProps"`
-	} `json:"props"`
+// Feed-first: Socket.dev publishes a full-content Atom feed for the blog,
+// which is far more stable than parsing the rendered HTML.
+type socketFeed struct {
+	Entries []socketFeedEntry `xml:"entry"`
+	Author  *socketFeedAuthor `xml:"author"`
 }
 
-type socketPost struct {
-	ID          string           `json:"_id"`
-	Title       string           `json:"title"`
-	Slug        string           `json:"slug"`
-	Description string           `json:"description"`
-	PublishedAt time.Time        `json:"publishedAt"`
-	Authors     []socketAuthor   `json:"authors"`
-	Categories  []socketCategory `json:"categories"`
+type socketFeedEntry struct {
+	Title     string             `xml:"title"`
+	Published time.Time          `xml:"published"`
+	Links     []socketFeedLink   `xml:"link"`
+	Authors   []socketFeedAuthor `xml:"author"`
+	Content   *socketFeedContent `xml:"content"`
 }
 
-type socketAuthor struct {
-	Name string `json:"name"`
+type socketFeedLink struct {
+	Rel  string `xml:"rel,attr"`
+	Href string `xml:"href,attr"`
 }
 
-type socketCategory struct {
-	Title string `json:"title"`
+type socketFeedAuthor struct {
+	Name string `xml:"name"`
 }
 
-// Article page: props.pageProps.data.post.body (Sanity Portable Text)
-type socketArticleNextData struct {
-	Props struct {
-		PageProps struct {
-			Data struct {
-				Post struct {
-					Body json.RawMessage `json:"body"`
-				} `json:"post"`
-			} `json:"data"`
-		} `json:"pageProps"`
-	} `json:"props"`
-}
-
-type ptBlock struct {
-	Type     string            `json:"_type"`
-	Children []json.RawMessage `json:"children"`
-}
-
-type ptSpan struct {
-	Type string `json:"_type"`
-	Text string `json:"text"`
-}
-
-func portableTextToPlain(body json.RawMessage) string {
-	var blocks []ptBlock
-	if err := json.Unmarshal(body, &blocks); err != nil {
-		return ""
-	}
-	var sb strings.Builder
-	for _, block := range blocks {
-		if block.Type != "block" {
-			continue
-		}
-		for _, childRaw := range block.Children {
-			var span ptSpan
-			if err := json.Unmarshal(childRaw, &span); err != nil {
-				continue
-			}
-			if span.Type == "span" {
-				sb.WriteString(span.Text)
-			}
-		}
-		sb.WriteString("\n\n")
-	}
-	return strings.TrimSpace(sb.String())
-}
-
-type articleContent struct {
-	html    string
-	cleaned string
+type socketFeedContent struct {
+	Type string `xml:"type,attr"`
+	HTML string `xml:",chardata"`
 }
 
 func (s *SocketDevScraper) FetchArticles(since time.Time) ([]domain.Article, error) {
-	posts, err := s.fetchPostList(since)
-	if err != nil {
-		return nil, err
+	articles, err := s.fetchFeedArticles(since)
+	if err == nil {
+		return articles, nil
 	}
 
-	articles, errs := s.buildArticles(posts)
-	if errs.HasErrors() {
-		return articles, errs
+	slog.Warn("socket.dev: falling back to HTML listing", "err", err)
+	return s.fetchListedArticles(since)
+}
+
+func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article, error) {
+	body, err := fetchRaw(s.baseURL + socketFeedPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch blog feed: %w", err)
+	}
+
+	var feed socketFeed
+	if err := xml.Unmarshal(body, &feed); err != nil {
+		return nil, fmt.Errorf("failed to parse blog feed: %w", err)
+	}
+
+	feedAuthor := ""
+	if feed.Author != nil {
+		feedAuthor = feed.Author.Name
+	}
+
+	var articles []domain.Article
+	for _, entry := range feed.Entries {
+		if !entry.Published.After(since) {
+			continue
+		}
+		if entry.Content == nil || entry.Content.HTML == "" {
+			return nil, fmt.Errorf("feed entry %q is missing content", entry.Title)
+		}
+
+		link, err := entryLink(entry)
+		if err != nil {
+			return nil, err
+		}
+
+		author := feedAuthor
+		if len(entry.Authors) > 0 {
+			author = entry.Authors[0].Name
+		}
+
+		contentHTML := entry.Content.HTML
+		articles = append(articles, domain.Article{
+			ID:             domain.NewID(),
+			Headline:       entry.Title,
+			Author:         author,
+			SourceURL:      link,
+			HostDomain:     domain.SocketDev,
+			PublishedAt:    entry.Published,
+			CrawledAt:      time.Now(),
+			ContentHTML:    contentHTML,
+			ContentCleaned: stripHTMLTags(contentHTML),
+		})
 	}
 	return articles, nil
 }
 
-func (s *SocketDevScraper) fetchPostList(since time.Time) ([]socketPost, error) {
+func entryLink(entry socketFeedEntry) (string, error) {
+	link := ""
+	for _, l := range entry.Links {
+		if l.Rel == "alternate" {
+			link = l.Href
+			break
+		}
+		if link == "" && l.Href != "" {
+			link = l.Href
+		}
+	}
+	if link == "" {
+		return "", fmt.Errorf("feed entry %q has no link", entry.Title)
+	}
+
+	u, err := url.Parse(link)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse feed entry link %q: %w", link, err)
+	}
+	u.RawQuery = ""
+	return u.String(), nil
+}
+
+type socketPost struct {
+	Title       string
+	Slug        string
+	PublishedAt time.Time
+	Author      string
+}
+
+const fetchThrottleDelay = 500 * time.Millisecond
+
+// Fallback when the feed is unavailable: parse the rendered blog listing.
+// Classes are generated utility classes, so selection relies on structure:
+// post cards are a[href^="/blog/"] elements containing an h3 and a time.
+func (s *SocketDevScraper) fetchListedArticles(since time.Time) ([]domain.Article, error) {
 	doc, err := fetchDocument(s.baseURL + "/blog")
 	if err != nil {
 		return nil, err
 	}
 
-	jsonStr := doc.Find("script#__NEXT_DATA__").Text()
-	if jsonStr == "" {
-		return nil, fmt.Errorf("__NEXT_DATA__ script tag not found on blog listing page")
-	}
-
-	var nextData socketListingNextData
-	if err := json.Unmarshal([]byte(jsonStr), &nextData); err != nil {
-		return nil, fmt.Errorf("failed to parse blog listing __NEXT_DATA__: %w", err)
+	posts := parseSocketListing(doc)
+	if len(posts) == 0 {
+		return nil, fmt.Errorf("no blog posts parsed from listing page %s: expected a[href^=\"/blog/\"] cards containing h3 and time elements", s.baseURL+"/blog")
 	}
 
 	var filtered []socketPost
-	for _, post := range nextData.Props.PageProps.Posts {
+	for _, post := range posts {
 		if post.PublishedAt.After(since) {
 			filtered = append(filtered, post)
 		}
 	}
-	return filtered, nil
+
+	return s.buildArticles(filtered)
 }
 
-const fetchThrottleDelay = 500 * time.Millisecond
+func parseSocketListing(doc *goquery.Document) []socketPost {
+	var posts []socketPost
+	seen := make(map[string]bool)
 
-func (s *SocketDevScraper) buildArticles(posts []socketPost) ([]domain.Article, ScraperErrors) {
+	doc.Find("a[href^='/blog/']").Each(func(_ int, sel *goquery.Selection) {
+		href, _ := sel.Attr("href")
+		slug := strings.TrimSuffix(strings.TrimPrefix(href, "/blog/"), "/")
+		if i := strings.IndexAny(slug, "?#"); i >= 0 {
+			slug = slug[:i]
+		}
+		if slug == "" || seen[slug] {
+			return
+		}
+
+		// Cards without an h3+time are category or pagination links.
+		heading := sel.Find("h3").First()
+		timeEl := sel.Find("time").First()
+		if heading.Length() == 0 || timeEl.Length() == 0 {
+			return
+		}
+
+		title := strings.TrimSpace(heading.Text())
+		if title == "" {
+			title, _ = sel.Attr("aria-label")
+		}
+
+		publishedAt, ok := parseSocketCardDate(timeEl)
+		if !ok {
+			return
+		}
+
+		seen[slug] = true
+		posts = append(posts, socketPost{
+			Title:       title,
+			Slug:        slug,
+			PublishedAt: publishedAt,
+		})
+	})
+	return posts
+}
+
+func parseSocketCardDate(timeEl *goquery.Selection) (time.Time, bool) {
+	if dt, exists := timeEl.Attr("datetime"); exists && dt != "" {
+		if t, err := time.Parse(time.RFC3339, dt); err == nil {
+			return t, true
+		}
+	}
+
+	// Listing dates have no time of day; treat them as start of day UTC.
+	if day, err := time.Parse("Jan 2, 2006", strings.TrimSpace(timeEl.Text())); err == nil {
+		return time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC), true
+	}
+	return time.Time{}, false
+}
+
+func (s *SocketDevScraper) buildArticles(posts []socketPost) ([]domain.Article, error) {
 	var articles []domain.Article
 	var errs ScraperErrors
 
@@ -160,15 +247,10 @@ func (s *SocketDevScraper) buildArticles(posts []socketPost) ([]domain.Article, 
 			continue
 		}
 
-		var author string
-		if len(post.Authors) > 0 {
-			author = post.Authors[0].Name
-		}
-
 		articles = append(articles, domain.Article{
 			ID:             domain.NewID(),
 			Headline:       post.Title,
-			Author:         author,
+			Author:         post.Author,
 			SourceURL:      articleURL,
 			HostDomain:     domain.SocketDev,
 			PublishedAt:    post.PublishedAt,
@@ -178,40 +260,33 @@ func (s *SocketDevScraper) buildArticles(posts []socketPost) ([]domain.Article, 
 		})
 	}
 
-	return articles, errs
+	if errs.HasErrors() {
+		return articles, errs
+	}
+	return articles, nil
 }
 
-func (s *SocketDevScraper) fetchArticleContent(url string) (articleContent, error) {
-	doc, err := fetchDocument(url)
+func (s *SocketDevScraper) fetchArticleContent(articleURL string) (articleContent, error) {
+	doc, err := fetchDocument(articleURL)
 	if err != nil {
 		return articleContent{}, err
 	}
 
-	// ContentCleaned: walk Portable Text body from __NEXT_DATA__
-	var cleaned string
-	jsonStr := doc.Find("script#__NEXT_DATA__").Text()
-	if jsonStr != "" {
-		var nextData socketArticleNextData
-		if err := json.Unmarshal([]byte(jsonStr), &nextData); err == nil {
-			cleaned = portableTextToPlain(nextData.Props.PageProps.Data.Post.Body)
-		}
+	body := doc.Find("article").First()
+	if body.Length() == 0 {
+		body = doc.Find("[class*='prose']").First()
+	}
+	if body.Length() == 0 {
+		return articleContent{}, fmt.Errorf("no article content found at %s", articleURL)
 	}
 
-	// ContentHTML: rendered prose element on the page
-	var html string
-	proseEl := doc.Find("[class*='prose']").First()
-	if proseEl.Length() > 0 {
-		html, _ = proseEl.Html()
-	}
+	html, _ := body.Html()
+	return articleContent{html: html, cleaned: stripHTMLTags(html)}, nil
+}
 
-	if html == "" && cleaned == "" {
-		return articleContent{}, fmt.Errorf("no article content found at %s", url)
-	}
-	if cleaned == "" {
-		cleaned = stripHTMLTags(html)
-	}
-
-	return articleContent{html: html, cleaned: cleaned}, nil
+type articleContent struct {
+	html    string
+	cleaned string
 }
 
 func stripHTMLTags(html string) string {
