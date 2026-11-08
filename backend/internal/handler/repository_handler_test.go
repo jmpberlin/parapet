@@ -495,3 +495,55 @@ func TestGetRepositoryMatchesHandler_PageBoundary(t *testing.T) {
 func contains(s string, substring string) bool {
 	return len(s) > 0 && len(substring) > 0 && s != "" && substring != "" && (len(s) >= len(substring))
 }
+
+func TestGetRepositoryMatchesHandler_IncludesEvidenceFields(t *testing.T) {
+	matches := []domain.Match{
+		{
+			ID:               "match-1",
+			VulnerabilityID:  "vuln-1",
+			RepositoryID:     "repo-1",
+			ComponentPURL:    "pkg:npm/lodash@4.17.20",
+			MatchedComponent: "lodash",
+			MatchedVersion:   "4.17.20",
+			Status:           domain.MatchStatusConfirmed,
+			Confidence:       "CONFIRMED",
+			MatchedOn:        "normalized_name",
+			VulnIdentifier:   "lodash",
+			DepIdentifier:    "lodash",
+			VersionCheck:     "in_range",
+		},
+		{
+			ID:              "match-2",
+			VulnerabilityID: "vuln-2",
+			RepositoryID:    "repo-1",
+			Status:          domain.MatchStatusWarning,
+		},
+	}
+	handler := GetRepositoryMatchesHandler(&mockMatchRepositoryForTests{
+		matches: matches,
+		total:   2,
+	})
+
+	req := httptest.NewRequest("GET", "/?page=1&limit=20", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		`"confidence":"CONFIRMED"`,
+		`"matched_on":"normalized_name"`,
+		`"vuln_identifier":"lodash"`,
+		`"dep_identifier":"lodash"`,
+		`"version_check":"in_range"`,
+	} {
+		if !contains(body, want) {
+			t.Errorf("response body should contain %s\ngot: %s", want, body)
+		}
+	}
+	if contains(body, `"version_check":""`) && !contains(body, `"version_check":"in_range"`) {
+		t.Errorf("empty version_check should be omitted for legacy-style matches\ngot: %s", body)
+	}
+}

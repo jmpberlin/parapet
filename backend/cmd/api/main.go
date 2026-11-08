@@ -177,8 +177,12 @@ func main() {
 }
 
 func corsAllowedOrigins() map[string]bool {
+	return corsAllowedOriginsWith(os.Getenv("CORS_ALLOWED_ORIGINS"))
+}
+
+func corsAllowedOriginsWith(envValue string) map[string]bool {
 	origins := make(map[string]bool)
-	for _, origin := range strings.Split(os.Getenv("CORS_ALLOWED_ORIGINS"), ",") {
+	for _, origin := range strings.Split(envValue, ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {
 			origins[origin] = true
 		}

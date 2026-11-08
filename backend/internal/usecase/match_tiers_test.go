@@ -300,3 +300,18 @@ func TestMatchAffected_Fixtures(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckVersionRange_EmptyDepVersion(t *testing.T) {
+assert.Equal(t, versionUnknown, checkVersionRange("< v0.38.0", ""))
+}
+
+func TestCheckVersionRange_InvalidConstraint(t *testing.T) {
+assert.Equal(t, versionUnknown, checkVersionRange("not a constraint", "1.0.0"))
+}
+
+func TestApplyVersionCheck_OutOfRangeDowngradesMediumToLow(t *testing.T) {
+result := tierResult{matched: true, confidence: ConfidenceMedium, matchedOn: "normalized_name"}
+updated := applyVersionCheck(result, "< v0.38.0", "v0.50.0")
+assert.Equal(t, ConfidenceLow, updated.confidence)
+assert.Equal(t, VersionCheckOutOfRange, updated.versionCheck)
+}

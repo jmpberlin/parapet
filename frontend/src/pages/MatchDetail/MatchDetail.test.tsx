@@ -156,6 +156,23 @@ describe('MatchDetail', () => {
     expect(screen.getByText('keyword')).toBeInTheDocument();
   });
 
+  test('shows a not-affected reasoning line when the version is out of range', () => {
+    mockUseMatchDetail({
+      data: {
+        ...detail,
+        match: { ...detail.match, version_check: 'out_of_range', confidence: 'LOW' },
+      },
+    });
+    renderPage('/matches/match-1');
+
+    const reasoning = screen.getByText(/Matched by package name/);
+    expect(reasoning.textContent).toBe(
+      'Matched by package name: lodash ~ lodash. Version 4.17.15 is outside <4.17.21 → not affected',
+    );
+    expect(screen.getByText('out of_range')).toBeInTheDocument();
+    expect(screen.getByText('low confidence')).toBeInTheDocument();
+  });
+
   test('shows a loading state while fetching', () => {
     mockUseMatchDetail({ isLoading: true });
     renderPage('/matches/match-1');

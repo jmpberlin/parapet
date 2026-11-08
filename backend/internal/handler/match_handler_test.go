@@ -194,6 +194,38 @@ func TestGetMatchDetailHandler_MissingVulnerabilityStillServesMatch(t *testing.T
 	}
 }
 
+func TestGetMatchDetailHandler_EmptyVulnerabilityID(t *testing.T) {
+	match := &domain.Match{
+		ID:               "match-1",
+		VulnerabilityID:  "",
+		RepositoryID:     "repo-1",
+		ComponentPURL:    "pkg:npm/lodash@4.17.15",
+		MatchedComponent: "lodash",
+		MatchedVersion:   "4.17.15",
+		Status:           domain.MatchStatusConfirmed,
+	}
+	handler := GetMatchDetailHandler(
+		&mockMatchDetailRepository{match: match},
+		&mockMatchVulnerabilityRepository{},
+		&mockMatchArticleRepository{},
+	)
+
+	w := matchDetailRequest(handler, "match-1")
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+	body := w.Body.String()
+	if !contains(body, `"matched_component":"lodash"`) {
+		t.Errorf("response should contain the match data, got: %s", body)
+	}
+	if !contains(body, `"cve":""`) {
+		t.Errorf("response should contain an empty vulnerability, got: %s", body)
+	}
+	if !contains(body, `"affected_technologies":[]`) {
+		t.Errorf("response should contain empty affected_technologies, got: %s", body)
+	}
+}
+
 func TestGetMatchDetailHandler_VulnerabilityError(t *testing.T) {
 	handler := GetMatchDetailHandler(
 		&mockMatchDetailRepository{match: &domain.Match{ID: "match-1", VulnerabilityID: "vuln-1"}},
