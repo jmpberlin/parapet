@@ -90,17 +90,26 @@ func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article,
 	}
 
 	var articles []domain.Article
+	var sinceFiltered, skippedHard int
+	var skippedTitles []string
 	for _, entry := range feed.Entries {
 		if !entry.Published.After(since) {
+			sinceFiltered++
 			continue
-		}
-		if entry.Content == nil || entry.Content.HTML == "" {
-			return nil, fmt.Errorf("feed entry %q is missing content", entry.Title)
 		}
 
 		link, err := entryLink(s.baseURL, entry)
 		if err != nil {
-			return nil, err
+			skippedHard++
+			skippedTitles = append(skippedTitles, entry.Title)
+			continue
+		}
+
+		content, err := entryContentHTML(entry)
+		if err != nil {
+			skippedHard++
+			skippedTitles = append(skippedTitles, entry.Title)
+			continue
 		}
 
 		author := feedAuthor
@@ -108,7 +117,6 @@ func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article,
 			author = entry.Authors[0].Name
 		}
 
-		contentHTML := entry.Content.HTML
 		articles = append(articles, domain.Article{
 			ID:             domain.NewID(),
 			Headline:       entry.Title,
@@ -117,11 +125,32 @@ func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article,
 			HostDomain:     domain.SocketDev,
 			PublishedAt:    entry.Published,
 			CrawledAt:      time.Now(),
-			ContentHTML:    contentHTML,
-			ContentCleaned: stripHTMLTags(contentHTML),
+			ContentHTML:    content,
+			ContentCleaned: stripHTMLTags(content),
 		})
 	}
+
+	// A feed that yields zero usable recent entries (rather than genuinely
+	// none) means its shape has changed; error so the caller falls back to
+	// the HTML listing instead of silently harvesting nothing.
+	if len(articles) == 0 && len(feed.Entries) > sinceFiltered {
+		return nil, fmt.Errorf("blog feed at %s has no usable recent entries (%d unusable)", s.baseURL+socketFeedPath, skippedHard)
+	}
+	if len(skippedTitles) > 0 {
+		slog.Warn("socket.dev: skipped unusable feed entries", "titles", skippedTitles)
+	}
 	return articles, nil
+}
+
+// entryContentHTML extracts the HTML payload of a feed entry. Atom defaults
+// to type="text" and also allows "xhtml", neither of which chardata captures
+// as usable HTML, so only explicit type="html" is accepted.
+func entryContentHTML(entry socketFeedEntry) (string, error) {
+	c := entry.Content
+	if c == nil || (c.Type != "" && c.Type != "html") || c.HTML == "" {
+		return "", fmt.Errorf("feed entry %q is missing HTML content", entry.Title)
+	}
+	return c.HTML, nil
 }
 
 func entryLink(baseURL string, entry socketFeedEntry) (string, error) {

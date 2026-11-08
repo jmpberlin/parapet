@@ -236,6 +236,77 @@ func TestSocketDevScraper_EntryWithoutAuthorUsesFeedAuthor(t *testing.T) {
 	assert.Equal(t, "Socket Team", articles[0].Author)
 }
 
+func TestSocketDevScraper_MixedFeedSkipsUnusableEntries(t *testing.T) {
+	// One recent entry without content and one with an unsafe link are
+	// skipped; the healthy entry is still harvested and no fallback runs.
+	feedXML := `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Socket</title>
+  <entry><title>No Content</title><published>%s</published><link rel="alternate" href="/blog/no-content"/></entry>
+  <entry><title>Unsafe Link</title><published>%s</published><link rel="alternate" href="javascript:alert(1)"/></entry>
+  <entry><title>Healthy Entry</title><published>%s</published><link rel="alternate" href="/blog/healthy-entry"/><content type="html"><![CDATA[<p>Healthy body.</p>]]></content></entry>
+</feed>`
+	now := time.Now().UTC().Format(time.RFC3339)
+	feedXML = fmt.Sprintf(feedXML, now, now, now)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, socketFeedPath, r.URL.Path)
+		w.Header().Set("Content-Type", "application/atom+xml")
+		fmt.Fprint(w, feedXML)
+	}))
+	defer srv.Close()
+
+	scraper := &SocketDevScraper{baseURL: srv.URL}
+	articles, err := scraper.FetchArticles(time.Now().Add(-24 * time.Hour))
+
+	require.NoError(t, err)
+	require.Len(t, articles, 1)
+	assert.Equal(t, "Healthy Entry", articles[0].Headline)
+	assert.Equal(t, srv.URL+"/blog/healthy-entry", articles[0].SourceURL)
+	assert.Equal(t, "Healthy body.", articles[0].ContentCleaned)
+}
+
+func TestSocketDevScraper_EntriesWithoutUsableContentFallBackToListing(t *testing.T) {
+	// A content type other than html (or missing content) makes an entry
+	// unusable; if every recent entry is unusable the listing fallback runs.
+	feedXML := `<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Socket</title>
+  <author><name>Socket</name></author>
+  <entry><title>XHTML Body</title><published>%s</published><link rel="alternate" href="/blog/xhtml-body"/></entry>
+  <entry><title>No Body</title><published>%s</published><link rel="alternate" href="/blog/no-body"/><content type="html"></content></entry>
+</feed>`
+	now := time.Now().UTC().Format(time.RFC3339)
+	feedXML = fmt.Sprintf(feedXML, now, now)
+
+	listingHTML := "<!DOCTYPE html><html><body>" +
+		socketCardHTML("From Listing", "/blog/from-listing", "From Listing", cardDateToday()) +
+		"</body></html>"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		switch r.URL.Path {
+		case "/api/blog/feed.atom":
+			fmt.Fprint(w, feedXML)
+		case "/blog":
+			fmt.Fprint(w, listingHTML)
+		case "/blog/from-listing":
+			fmt.Fprint(w, socketArticlePageHTML("<p>harvested from the listing after unusable feed entries.</p>"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	scraper := &SocketDevScraper{baseURL: srv.URL}
+	articles, err := scraper.FetchArticles(time.Now().Add(-24 * time.Hour))
+
+	require.NoError(t, err)
+	require.Len(t, articles, 1)
+	assert.Equal(t, "From Listing", articles[0].Headline)
+	assert.Contains(t, articles[0].ContentCleaned, "harvested from the listing")
+}
+
 func TestSocketDevScraper_EntryMissingContentFallsBackToListing(t *testing.T) {
 	feedXML := socketFeedXML("Socket", []socketTestFeedEntry{{
 		Title:     "No Content",
