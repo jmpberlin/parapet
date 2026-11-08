@@ -148,6 +148,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/matches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get match detail
+         * @description Returns full detail for a single vulnerability match, including the matched dependency, the vulnerability with its affected technologies, the source articles the vulnerability was extracted from, and the matching evidence (tier, identifiers compared, confidence and version check result).
+         */
+        get: operations["getMatchByID"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/vulnerabilities": {
         parameters: {
             query?: never;
@@ -450,6 +470,87 @@ export interface components {
              * @description Timestamp when this match was first detected
              */
             created_at: string;
+            /**
+             * @description Confidence of the match after the version range check (HIGH / MEDIUM / LOW / CONFIRMED / WARNING). Empty for matches created before evidence was recorded.
+             * @example CONFIRMED
+             * @enum {string}
+             */
+            confidence?: "HIGH" | "MEDIUM" | "LOW" | "CONFIRMED" | "WARNING";
+            /**
+             * @description The matching tier that produced this match
+             * @example purl
+             * @enum {string}
+             */
+            matched_on?: "purl" | "namespace" | "normalized_name" | "word_token";
+            /**
+             * @description The vulnerability-side identifier that was compared
+             * @example github.com/gorilla/mux
+             */
+            vuln_identifier?: string;
+            /**
+             * @description The dependency-side identifier that was compared
+             * @example github.com/gorilla/mux
+             */
+            dep_identifier?: string;
+            /**
+             * @description Result of the semver check of the dependency version against the vulnerability's affected version range. Unknown for matches created before this field was recorded.
+             * @example in_range
+             * @enum {string}
+             */
+            version_check?: "in_range" | "out_of_range" | "unknown";
+        };
+        /** @description Full detail for a single match: the match itself (including matching evidence), the dependency that was matched, the vulnerability it was matched against, and the source articles the vulnerability was extracted from. */
+        MatchDetail: {
+            match: components["schemas"]["Match"];
+            /** @description The repository dependency that triggered the alert */
+            dependency: {
+                /** @example github.com/gorilla/mux */
+                name: string;
+                /** @example v1.8.0 */
+                version: string;
+                /** @example pkg:golang/github.com/gorilla/mux@v1.8.0 */
+                purl: string;
+            };
+            /** @description The vulnerability the dependency was matched against */
+            vulnerability: {
+                /** @example 01HXYZ9999VULNID */
+                id: string;
+                /** @example CVE-2022-24675 */
+                cve: string;
+                /**
+                 * @example HIGH
+                 * @enum {string}
+                 */
+                severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+                /** @example A flaw was found in the WebGL implementation… */
+                description: string;
+                /** @description Affected technologies as extracted from the source articles, including the version range used for the version check. */
+                affected_technologies: {
+                    /** @example gorilla/mux */
+                    name?: string;
+                    /** @example pkg:golang/github.com/gorilla/mux */
+                    purl?: string;
+                    /** @example < v1.8.1 */
+                    version_range?: string;
+                }[];
+                /** Format: date-time */
+                published_at: string;
+                /** Format: date-time */
+                created_at: string;
+            };
+            /** @description The articles the vulnerability was extracted from */
+            source_articles: {
+                /** @example 01HXYZ1234ABCDEF */
+                id: string;
+                /** @example Critical vulnerability disclosed in gorilla/mux */
+                headline: string;
+                /** @example https://www.bleepingcomputer.com/news/security/example */
+                source_url: string;
+                /** @example bleepingcomputer.com */
+                host_domain: string;
+                /** Format: date-time */
+                published_at: string;
+            }[];
         };
         /** @description Basic detail view of a watched repository, including counts of dependencies and CVE matches. Use the paginated endpoints to fetch the actual dependencies and matches. */
         RepositoryDetail: {
@@ -964,6 +1065,52 @@ export interface operations {
                 };
             };
             /** @description Database or internal error while fetching dependencies */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getMatchByID: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique identifier of the match */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Match detail with dependency, vulnerability and source articles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchDetail"];
+                };
+            };
+            /** @description No match found for the given ID */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": "match not found"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Database or internal error while fetching match data */
             500: {
                 headers: {
                     [name: string]: unknown;

@@ -5,6 +5,7 @@ import Articles from './pages/Articles/Articles';
 import ArticleDetail from './pages/ArticleDetail/ArticleDetail';
 import Vulnerabilities from './pages/Vulnerabilities/Vulnerabilities';
 import VulnerabilityDetail from './pages/VulnerabilityDetail/VulnerabilityDetail';
+import MatchDetail from './pages/MatchDetail/MatchDetail';
 import Header from './Header/Header';
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
         <Route path='/articles/:id' element={<ArticleDetail />} />
         <Route path='/vulnerabilities' element={<Vulnerabilities />} />
         <Route path='/vulnerabilities/:id' element={<VulnerabilityDetail />} />
+        <Route path='/matches/:id' element={<MatchDetail />} />
       </Routes>
     </>
   );

@@ -198,22 +198,32 @@ function Repositories() {
                 >
                   {matches.items.map((match) => (
                     <li key={match.id} className='repos__match-item'>
-                      <span
-                        className={`repos__status repos__status--${match.status.toLowerCase()}`}
-                      >
-                        {match.status}
-                      </span>
-                      <div className='repos__match-detail'>
-                        <span className='repos__match-name'>
-                          {match.matched_component}
+                      <Link to={`/matches/${match.id}`} className='repos__match-link'>
+                        <span
+                          className={`repos__status repos__status--${match.status.toLowerCase()}`}
+                        >
+                          {match.status}
                         </span>
-                        <span className='repos__match-version'>
-                          {match.matched_version}
+                        <div className='repos__match-detail'>
+                          <span className='repos__match-name'>
+                            {match.matched_component}
+                          </span>
+                          <span className='repos__match-version'>
+                            {match.matched_version}
+                          </span>
+                        </div>
+                        <div className='repos__match-badges'>
+                          {match.matched_on && (
+                            <span className='repos__badge'>{match.matched_on}</span>
+                          )}
+                          {match.confidence && (
+                            <span className='repos__badge'>{match.confidence}</span>
+                          )}
+                        </div>
+                        <span className='repos__match-date repos__date'>
+                          {fmt(match.created_at)}
                         </span>
-                      </div>
-                      <span className='repos__match-date repos__date'>
-                        {fmt(match.created_at)}
-                      </span>
+                      </Link>
                     </li>
                   ))}
                 </ul>

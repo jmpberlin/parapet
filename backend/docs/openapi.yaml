@@ -359,6 +359,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /matches/{id}:
+    get:
+      tags: [Repositories]
+      summary: Get match detail
+      description: >
+        Returns full detail for a single vulnerability match, including the
+        matched dependency, the vulnerability with its affected technologies,
+        the source articles the vulnerability was extracted from, and the
+        matching evidence (tier, identifiers compared, confidence and version
+        check result).
+      operationId: getMatchByID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the match
+          schema:
+            type: string
+            example: '01HXYZMATCHMATCH'
+      responses:
+        '200':
+          description: Match detail with dependency, vulnerability and source articles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+        '404':
+          description: No match found for the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: match not found
+        '500':
+          description: Database or internal error while fetching match data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /vulnerabilities:
     get:
       tags: [Vulnerabilities]
@@ -742,6 +783,35 @@ components:
           type: string
           format: date-time
           description: Timestamp when this match was first detected
+        confidence:
+          type: string
+          description: >
+            Confidence of the match after the version range check
+            (HIGH / MEDIUM / LOW / CONFIRMED / WARNING). Empty for
+            matches created before evidence was recorded.
+          enum: [HIGH, MEDIUM, LOW, CONFIRMED, WARNING]
+          example: CONFIRMED
+        matched_on:
+          type: string
+          description: The matching tier that produced this match
+          enum: [purl, namespace, normalized_name, word_token]
+          example: purl
+        vuln_identifier:
+          type: string
+          description: The vulnerability-side identifier that was compared
+          example: github.com/gorilla/mux
+        dep_identifier:
+          type: string
+          description: The dependency-side identifier that was compared
+          example: github.com/gorilla/mux
+        version_check:
+          type: string
+          description: >
+            Result of the semver check of the dependency version against the
+            vulnerability's affected version range. Unknown for matches
+            created before this field was recorded.
+          enum: [in_range, out_of_range, unknown]
+          example: in_range
       required:
         - id
         - vulnerability_id
@@ -751,6 +821,95 @@ components:
         - matched_version
         - status
         - created_at
+
+    MatchDetail:
+      type: object
+      description: >
+        Full detail for a single match: the match itself (including matching
+        evidence), the dependency that was matched, the vulnerability it was
+        matched against, and the source articles the vulnerability was
+        extracted from.
+      properties:
+        match:
+          $ref: '#/components/schemas/Match'
+        dependency:
+          type: object
+          description: The repository dependency that triggered the alert
+          properties:
+            name:
+              type: string
+              example: github.com/gorilla/mux
+            version:
+              type: string
+              example: v1.8.0
+            purl:
+              type: string
+              example: pkg:golang/github.com/gorilla/mux@v1.8.0
+          required: [name, version, purl]
+        vulnerability:
+          type: object
+          description: The vulnerability the dependency was matched against
+          properties:
+            id:
+              type: string
+              example: '01HXYZ9999VULNID'
+            cve:
+              type: string
+              example: CVE-2022-24675
+            severity:
+              type: string
+              enum: [CRITICAL, HIGH, MEDIUM, LOW]
+              example: HIGH
+            description:
+              type: string
+              example: A flaw was found in the WebGL implementation…
+            affected_technologies:
+              type: array
+              description: >
+                Affected technologies as extracted from the source articles,
+                including the version range used for the version check.
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: gorilla/mux
+                  purl:
+                    type: string
+                    example: pkg:golang/github.com/gorilla/mux
+                  version_range:
+                    type: string
+                    example: < v1.8.1
+            published_at:
+              type: string
+              format: date-time
+            created_at:
+              type: string
+              format: date-time
+          required: [id, cve, severity, description, affected_technologies, published_at, created_at]
+        source_articles:
+          type: array
+          description: The articles the vulnerability was extracted from
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: '01HXYZ1234ABCDEF'
+              headline:
+                type: string
+                example: Critical vulnerability disclosed in gorilla/mux
+              source_url:
+                type: string
+                example: https://www.bleepingcomputer.com/news/security/example
+              host_domain:
+                type: string
+                example: bleepingcomputer.com
+              published_at:
+                type: string
+                format: date-time
+            required: [id, headline, source_url, host_domain, published_at]
+      required: [match, dependency, vulnerability, source_articles]
 
     RepositoryDetail:
       type: object

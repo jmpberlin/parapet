@@ -5,6 +5,7 @@ import {
   getRepositoryByID,
   getRepositoryMatches,
   getRepositoryDependencies,
+  getMatchByID,
 } from '../api';
 import type { components } from '../types/api';
 
@@ -40,6 +41,14 @@ export function useRepositoryDependencies(id: string, page: number) {
     queryFn: () => getRepositoryDependencies(id, page),
     enabled: !!id,
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useMatchDetail(id: string) {
+  return useQuery({
+    queryKey: ['matches', id],
+    queryFn: () => getMatchByID(id),
+    enabled: !!id,
   });
 }
 

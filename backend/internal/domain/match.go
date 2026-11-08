@@ -24,4 +24,5 @@ type Match struct {
 	MatchedOn        string
 	VulnIdentifier   string
 	DepIdentifier    string
+	VersionCheck     string
 }

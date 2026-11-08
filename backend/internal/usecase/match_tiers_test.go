@@ -143,6 +143,45 @@ func TestApplyVersionCheck_LowConfidenceUnchanged(t *testing.T) {
 	assert.Equal(t, ConfidenceLow, updated.confidence)
 }
 
+func TestApplyVersionCheck_InRangeSetsVersionCheck(t *testing.T) {
+	result := tierResult{matched: true, confidence: ConfidenceHigh, matchedOn: "purl"}
+	updated := applyVersionCheck(result, "<=8.0.0", "7.4.0")
+	assert.Equal(t, VersionCheckInRange, updated.versionCheck)
+}
+
+func TestApplyVersionCheck_OutOfRangeSetsVersionCheck(t *testing.T) {
+	result := tierResult{matched: true, confidence: ConfidenceHigh, matchedOn: "purl"}
+	updated := applyVersionCheck(result, "< v0.38.0", "v0.50.0")
+	assert.Equal(t, VersionCheckOutOfRange, updated.versionCheck)
+}
+
+func TestApplyVersionCheck_UnknownSetsVersionCheck(t *testing.T) {
+	result := tierResult{matched: true, confidence: ConfidenceHigh, matchedOn: "purl"}
+	updated := applyVersionCheck(result, "", "v1.0.0")
+	assert.Equal(t, VersionCheckUnknown, updated.versionCheck)
+}
+
+func TestBuildMatchFromResult_CarriesVersionCheck(t *testing.T) {
+	dep := domain.RepositoryDependency{
+		ID:      "dep-1",
+		Name:    "lodash",
+		Version: "4.17.15",
+		PURL:    "pkg:npm/lodash@4.17.15",
+	}
+	result := tierResult{
+		matched:        true,
+		confidence:     ConfidenceConfirmed,
+		matchedOn:      "normalized_name",
+		vulnIdentifier: "lodash",
+		depIdentifier:  "lodash",
+		versionCheck:   VersionCheckInRange,
+	}
+	match := buildMatchFromResult("vuln-1", dep, "repo-1", result)
+	assert.Equal(t, VersionCheckInRange, match.VersionCheck)
+	assert.Equal(t, "normalized_name", match.MatchedOn)
+	assert.Equal(t, string(ConfidenceConfirmed), match.Confidence)
+}
+
 func TestMatchAffected_PURLMatch(t *testing.T) {
 	affected := domain.AffectedTechnology{
 		Name: "react",
@@ -260,4 +299,19 @@ func TestMatchAffected_Fixtures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckVersionRange_EmptyDepVersion(t *testing.T) {
+assert.Equal(t, versionUnknown, checkVersionRange("< v0.38.0", ""))
+}
+
+func TestCheckVersionRange_InvalidConstraint(t *testing.T) {
+assert.Equal(t, versionUnknown, checkVersionRange("not a constraint", "1.0.0"))
+}
+
+func TestApplyVersionCheck_OutOfRangeDowngradesMediumToLow(t *testing.T) {
+result := tierResult{matched: true, confidence: ConfidenceMedium, matchedOn: "normalized_name"}
+updated := applyVersionCheck(result, "< v0.38.0", "v0.50.0")
+assert.Equal(t, ConfidenceLow, updated.confidence)
+assert.Equal(t, VersionCheckOutOfRange, updated.versionCheck)
 }

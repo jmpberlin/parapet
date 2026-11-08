@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -166,6 +167,8 @@ func main() {
 
 	r.Get("/vulnerabilities", handler.GetVulnerabilitiesHandler(vulnRepo))
 
+	r.Get("/matches/{id}", handler.GetMatchDetailHandler(matchRepo, vulnRepo, articleRepo))
+
 	port := getPort()
 	slog.Info("starting http server", "port", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
@@ -173,14 +176,38 @@ func main() {
 	}
 }
 
+func corsAllowedOrigins() map[string]bool {
+	return corsAllowedOriginsWith(os.Getenv("CORS_ALLOWED_ORIGINS"))
+}
+
+func corsAllowedOriginsWith(envValue string) map[string]bool {
+	origins := make(map[string]bool)
+	for _, origin := range strings.Split(envValue, ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			origins[origin] = true
+		}
+	}
+	if len(origins) == 0 {
+		origins["https://parapet.digital"] = true
+	}
+	return origins
+}
+
+var allowedOrigins = corsAllowedOrigins()
+
 func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"status": "ok"}`)
 }
 
+// Only one origin may be sent per response; echo the request's Origin when
+// it is allowed instead of listing all configured origins.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "https://parapet.digital")
+		if origin := r.Header.Get("Origin"); origin != "" && allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
