@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -175,6 +176,22 @@ func main() {
 	}
 }
 
+func corsAllowedOrigins() []string {
+	value := os.Getenv("CORS_ALLOWED_ORIGINS")
+	var origins []string
+	for _, origin := range strings.Split(value, ",") {
+		if origin = strings.TrimSpace(origin); origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	if len(origins) == 0 {
+		origins = []string{"https://parapet.digital"}
+	}
+	return origins
+}
+
+var allowedOrigins = corsAllowedOrigins()
+
 func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, `{"status": "ok"}`)
@@ -182,7 +199,10 @@ func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "https://parapet.digital")
+		for _, origin := range allowedOrigins {
+			w.Header().Add("Access-Control-Allow-Origin", origin)
+		}
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {

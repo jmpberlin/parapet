@@ -17,7 +17,7 @@ type MatchVulnerabilityRepository interface {
 }
 
 type MatchArticleRepository interface {
-	GetByID(id string) (*domain.Article, error)
+	GetByIDs(ids []string) ([]domain.Article, error)
 }
 
 type dependencyResponse struct {
@@ -81,16 +81,13 @@ func GetMatchDetailHandler(
 			}
 		}
 
-		articles := make([]sourceArticleResponse, 0, len(vuln.SourceArticleIDs))
-		for _, articleID := range vuln.SourceArticleIDs {
-			a, err := articleRepo.GetByID(articleID)
-			if err != nil {
-				http.Error(w, `{"error": "failed to fetch source article"}`, http.StatusInternalServerError)
-				return
-			}
-			if a == nil {
-				continue
-			}
+		articleRows, err := articleRepo.GetByIDs(vuln.SourceArticleIDs)
+		if err != nil {
+			http.Error(w, `{"error": "failed to fetch source articles"}`, http.StatusInternalServerError)
+			return
+		}
+		articles := make([]sourceArticleResponse, 0, len(articleRows))
+		for _, a := range articleRows {
 			articles = append(articles, sourceArticleResponse{
 				ID:          a.ID,
 				Headline:    a.Headline,

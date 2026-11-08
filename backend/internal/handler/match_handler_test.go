@@ -41,11 +41,17 @@ type mockMatchArticleRepository struct {
 	err      error
 }
 
-func (m *mockMatchArticleRepository) GetByID(id string) (*domain.Article, error) {
+func (m *mockMatchArticleRepository) GetByIDs(ids []string) ([]domain.Article, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
-	return m.articles[id], nil
+	var out []domain.Article
+	for _, id := range ids {
+		if a, ok := m.articles[id]; ok {
+			out = append(out, *a)
+		}
+	}
+	return out, nil
 }
 
 func matchDetailRequest(h http.HandlerFunc, id string) *httptest.ResponseRecorder {
