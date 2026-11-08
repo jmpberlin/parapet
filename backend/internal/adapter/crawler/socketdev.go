@@ -33,6 +33,7 @@ func (s *SocketDevScraper) Name() string {
 // Feed-first: Socket.dev publishes a full-content Atom feed for the blog,
 // which is far more stable than parsing the rendered HTML.
 type socketFeed struct {
+	XMLName xml.Name          `xml:"feed"`
 	Entries []socketFeedEntry `xml:"entry"`
 	Author  *socketFeedAuthor `xml:"author"`
 }
@@ -79,6 +80,9 @@ func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article,
 	if err := xml.Unmarshal(body, &feed); err != nil {
 		return nil, fmt.Errorf("failed to parse blog feed: %w", err)
 	}
+	if len(feed.Entries) == 0 {
+		return nil, fmt.Errorf("blog feed at %s contains no entries", s.baseURL+socketFeedPath)
+	}
 
 	feedAuthor := ""
 	if feed.Author != nil {
@@ -94,7 +98,7 @@ func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article,
 			return nil, fmt.Errorf("feed entry %q is missing content", entry.Title)
 		}
 
-		link, err := entryLink(entry)
+		link, err := entryLink(s.baseURL, entry)
 		if err != nil {
 			return nil, err
 		}
@@ -120,24 +124,48 @@ func (s *SocketDevScraper) fetchFeedArticles(since time.Time) ([]domain.Article,
 	return articles, nil
 }
 
-func entryLink(entry socketFeedEntry) (string, error) {
-	link := ""
+func entryLink(baseURL string, entry socketFeedEntry) (string, error) {
+	alternate := ""
+	other := ""
 	for _, l := range entry.Links {
-		if l.Rel == "alternate" {
-			link = l.Href
-			break
+		if l.Href == "" {
+			continue
 		}
-		if link == "" && l.Href != "" {
-			link = l.Href
+		if alternate == "" && l.Rel == "alternate" {
+			alternate = l.Href
+			continue
 		}
+		if other == "" && l.Rel != "self" {
+			other = l.Href
+		}
+	}
+
+	// The self link points back at the feed itself, so it is only used as
+	// a last resort — never as an article URL.
+	link := alternate
+	if link == "" {
+		link = other
 	}
 	if link == "" {
 		return "", fmt.Errorf("feed entry %q has no link", entry.Title)
 	}
 
-	u, err := url.Parse(link)
+	// The feed is untrusted remote input: resolve against the scraper's base
+	// URL and keep only same-origin http(s) links, so SourceURL can never
+	// become a javascript:/data: link or point at another host.
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid scraper base URL %q: %w", baseURL, err)
+	}
+	u, err := base.Parse(link)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse feed entry link %q: %w", link, err)
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return "", fmt.Errorf("feed entry %q link has unsupported scheme %q", entry.Title, u.Scheme)
+	}
+	if u.Host != base.Host {
+		return "", fmt.Errorf("feed entry %q link points at foreign host %q", entry.Title, u.Host)
 	}
 	u.RawQuery = ""
 	return u.String(), nil
@@ -186,7 +214,9 @@ func parseSocketListing(doc *goquery.Document) []socketPost {
 		if i := strings.IndexAny(slug, "?#"); i >= 0 {
 			slug = slug[:i]
 		}
-		if slug == "" || seen[slug] {
+		// A slug containing "/" or ".." would escape the /blog/<slug> URL
+		// shape that buildArticles constructs.
+		if slug == "" || seen[slug] || strings.Contains(slug, "/") || strings.Contains(slug, "..") {
 			return
 		}
 

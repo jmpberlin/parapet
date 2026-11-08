@@ -14,11 +14,14 @@ var httpClient = &http.Client{
 	Timeout: 30 * time.Second,
 }
 
-func fetchRaw(url string) ([]byte, error) {
+// maxResponseBodyBytes bounds how much is read from any remote response so a
+// misbehaving or hostile origin cannot exhaust scraper memory.
+const maxResponseBodyBytes = 10 << 20
 
+func fetchRaw(url string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request for %s: %w", url, err)
 	}
 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
@@ -27,16 +30,19 @@ func fetchRaw(url string) ([]byte, error) {
 
 	res, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch page: %w", err)
+		return nil, fmt.Errorf("failed to fetch %s: %w", url, err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", res.StatusCode)
 	}
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, maxResponseBodyBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+	if len(body) > maxResponseBodyBytes {
+		return nil, fmt.Errorf("response body from %s exceeds %d bytes", url, maxResponseBodyBytes)
 	}
 	return body, nil
 }
@@ -48,7 +54,7 @@ func fetchDocument(url string) (*goquery.Document, error) {
 	}
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse listing page: %w", err)
+		return nil, fmt.Errorf("failed to parse page %s: %w", url, err)
 	}
 	return doc, nil
 }

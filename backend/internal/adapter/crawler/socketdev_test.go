@@ -63,6 +63,12 @@ func socketCardHTML(ariaLabel, href, title, timeHTML string) string {
 	return sb.String()
 }
 
+// cardDateToday formats "now" the way the listing renders card dates, so
+// fallback tests are stable regardless of timezone and date boundaries.
+func cardDateToday() string {
+	return time.Now().UTC().Format("Jan 2, 2006")
+}
+
 func socketCategoryLinkHTML(label string) string {
 	return fmt.Sprintf(`<a class="nav-dropdown-row-link" aria-label=%q target="_self" href="/blog/category/security-news"><div class="d_flex flex-d_column"><span class="textStyle_paragraph-sm">%s</span></div></a>`, label, label)
 }
@@ -92,7 +98,7 @@ func TestSocketDevScraper_FetchArticlesViaFeed(t *testing.T) {
 	contentHTML := "<p>Socket detected 84 compromised packages.</p><p>Second paragraph about npm.</p>"
 	feedXML := socketFeedXML("Socket", []socketTestFeedEntry{{
 		Title:       "TanStack npm Packages Compromised",
-		Link:        socketBaseURL + "/blog/tanstack-npm-packages-compromised?utm_medium=feed",
+		Link:        "/blog/tanstack-npm-packages-compromised?utm_medium=feed",
 		Published:   time.Now().Add(-1 * time.Hour),
 		Author:      "Socket Research Team",
 		ContentHTML: contentHTML,
@@ -149,12 +155,120 @@ func TestSocketDevScraper_FeedFiltersBySince(t *testing.T) {
 	assert.Empty(t, articles)
 }
 
+func TestSocketDevScraper_FeedFallsBackWhenBodyIsNotAtom(t *testing.T) {
+	// An SPA can serve its HTML index with a 200 for any path; the feed
+	// parse must fail (root is not <feed>) so the listing fallback runs.
+	listingHTML := "<!DOCTYPE html><html><body>" +
+		socketCardHTML("Title", "/blog/fallback-post", "Title", cardDateToday()) +
+		"</body></html>"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		switch r.URL.Path {
+		case "/api/blog/feed.atom":
+			fmt.Fprint(w, "<!DOCTYPE html><html><body>SPA shell</body></html>")
+		case "/blog":
+			fmt.Fprint(w, listingHTML)
+		case "/blog/fallback-post":
+			fmt.Fprint(w, socketArticlePageHTML("<p>fetched from the listing fallback.</p>"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	scraper := &SocketDevScraper{baseURL: srv.URL}
+	articles, err := scraper.FetchArticles(time.Now().Add(-24 * time.Hour))
+
+	require.NoError(t, err)
+	require.Len(t, articles, 1)
+	assert.Equal(t, "fallback-post", strings.TrimPrefix(articles[0].SourceURL, srv.URL+"/blog/"))
+	assert.Contains(t, articles[0].ContentCleaned, "fetched from the listing fallback.")
+}
+
+func TestSocketDevScraper_EmptyFeedFallsBackToListing(t *testing.T) {
+	listingHTML := "<!DOCTYPE html><html><body>" +
+		socketCardHTML("Title", "/blog/empty-feed-fallback", "Title", cardDateToday()) +
+		"</body></html>"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		switch r.URL.Path {
+		case "/api/blog/feed.atom":
+			fmt.Fprint(w, `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><title>Socket</title></feed>`)
+		case "/blog":
+			fmt.Fprint(w, listingHTML)
+		case "/blog/empty-feed-fallback":
+			fmt.Fprint(w, socketArticlePageHTML("<p>came from the listing.</p>"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	scraper := &SocketDevScraper{baseURL: srv.URL}
+	articles, err := scraper.FetchArticles(time.Now().Add(-24 * time.Hour))
+
+	require.NoError(t, err)
+	require.Len(t, articles, 1)
+	assert.Equal(t, srv.URL+"/blog/empty-feed-fallback", articles[0].SourceURL)
+}
+
+func TestSocketDevScraper_EntryWithoutAuthorUsesFeedAuthor(t *testing.T) {
+	feedXML := socketFeedXML("Socket Team", []socketTestFeedEntry{{
+		Title:       "No Entry Author",
+		Link:        "/blog/no-entry-author",
+		Published:   time.Now().Add(-1 * time.Hour),
+		ContentHTML: "<p>Body text.</p>",
+	}})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/atom+xml")
+		fmt.Fprint(w, feedXML)
+	}))
+	defer srv.Close()
+
+	scraper := &SocketDevScraper{baseURL: srv.URL}
+	articles, err := scraper.FetchArticles(time.Now().Add(-24 * time.Hour))
+
+	require.NoError(t, err)
+	require.Len(t, articles, 1)
+	assert.Equal(t, "Socket Team", articles[0].Author)
+}
+
+func TestSocketDevScraper_EntryMissingContentFallsBackToListing(t *testing.T) {
+	feedXML := socketFeedXML("Socket", []socketTestFeedEntry{{
+		Title:     "No Content",
+		Link:      socketBaseURL + "/blog/no-content",
+		Published: time.Now().Add(-1 * time.Hour),
+	}})
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		switch r.URL.Path {
+		case "/api/blog/feed.atom":
+			fmt.Fprint(w, feedXML)
+		case "/blog":
+			fmt.Fprint(w, "<!DOCTYPE html><html><body><div>Nothing here</div></body></html>")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	scraper := &SocketDevScraper{baseURL: srv.URL}
+	_, err := scraper.FetchArticles(time.Now().Add(-24 * time.Hour))
+
+	// The listing also yields nothing, so the descriptive listing error surfaces.
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no blog posts parsed from listing page")
+}
+
 func TestSocketDevScraper_FeedFallsBackToHTMLListing(t *testing.T) {
-	// The parsed listing timestamp has day granularity (start of day UTC),
-	// so use a comfortably older cutoff to avoid midnight-boundary flakiness.
+	// Card dates have day granularity, so use "today" as the card date and a
+	// comfortably older cutoff — robust against timezones and date boundaries.
 	since := time.Now().Add(-72 * time.Hour)
-	publishedAt := time.Now().Add(-1 * time.Hour)
-	cardDate := publishedAt.UTC().Format("Jan 2, 2006")
+	cardDate := cardDateToday()
 
 	listingHTML := "<!DOCTYPE html><html lang=\"en\"><head><title>Socket Blog</title></head><body>" +
 		"<nav>" + socketCategoryLinkHTML("Security") + "</nav>" +
@@ -200,7 +314,8 @@ func TestSocketDevScraper_FeedFallsBackToHTMLListing(t *testing.T) {
 	assert.Equal(t, "Rails has released security updates.\n\nSocket released a patch.", a.ContentCleaned)
 	assert.False(t, a.PublishedAt.IsZero())
 	// The listing date has no time of day and is treated as start of day UTC.
-	assert.Equal(t, time.Date(publishedAt.Year(), publishedAt.Month(), publishedAt.Day(), 0, 0, 0, 0, time.UTC), a.PublishedAt)
+	now := time.Now().UTC()
+	assert.Equal(t, time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC), a.PublishedAt)
 }
 
 func TestSocketDevScraper_ListingWithoutCardsFailsWithDescriptiveError(t *testing.T) {
@@ -259,6 +374,21 @@ func TestParseSocketListing_SkipsNonPostLinks(t *testing.T) {
 	assert.Equal(t, "title", posts[0].Slug)
 }
 
+func TestParseSocketListing_RejectsPathTraversalSlugs(t *testing.T) {
+	html := "<!DOCTYPE html><html><body>" +
+		socketCardHTML("Traversal", "/blog/../../admin", "Traversal", cardDateToday()) +
+		socketCardHTML("Escaped", "/blog/x/../y", "Escaped", cardDateToday()) +
+		socketCardHTML("Valid", "/blog/valid-post", "Valid", cardDateToday()) +
+		"</body></html>"
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	require.NoError(t, err)
+
+	posts := parseSocketListing(doc)
+	require.Len(t, posts, 1)
+	assert.Equal(t, "valid-post", posts[0].Slug)
+}
+
 func TestParseSocketCardDate(t *testing.T) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(
 		`<div><time id="with-dt" datetime="2026-11-05T14:30:00Z">Nov 5, 2026</time><time id="text-only">Nov 5, 2026</time><time id="bad">soon</time></div>`))
@@ -290,9 +420,106 @@ func TestEntryLink_PrefersAlternateAndStripsQuery(t *testing.T) {
 			{Rel: "alternate", Href: "https://socket.dev/blog/some-post?utm_medium=feed"},
 		},
 	}
-	got, err := entryLink(entry)
+	got, err := entryLink(socketBaseURL, entry)
 	require.NoError(t, err)
 	assert.Equal(t, "https://socket.dev/blog/some-post", got)
+}
+
+func TestEntryLink_ResolvesRelativeLinksAgainstBase(t *testing.T) {
+	entry := socketFeedEntry{
+		Title: "T",
+		Links: []socketFeedLink{
+			{Rel: "alternate", Href: "/blog/some-post"},
+		},
+	}
+	got, err := entryLink(socketBaseURL, entry)
+	require.NoError(t, err)
+	assert.Equal(t, "https://socket.dev/blog/some-post", got)
+}
+
+func TestEntryLink_RejectsUnsafeLinks(t *testing.T) {
+	tests := []struct {
+		name string
+		href string
+	}{
+		{name: "javascript scheme", href: "javascript:alert(1)"},
+		{name: "data scheme", href: "data:text/html,<script>alert(1)</script>"},
+		{name: "file scheme", href: "file:///etc/passwd"},
+		{name: "foreign host", href: "https://evil.example/blog/post"},
+		{name: "host with different port", href: "https://socket.dev:8080/blog/post"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			entry := socketFeedEntry{
+				Title: "T",
+				Links: []socketFeedLink{{Rel: "alternate", Href: tc.href}},
+			}
+			_, err := entryLink(socketBaseURL, entry)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestEntryLink_FallsBackToFirstLinkWithHref(t *testing.T) {
+	t.Run("no alternate link", func(t *testing.T) {
+		entry := socketFeedEntry{
+			Title: "T",
+			Links: []socketFeedLink{
+				{Rel: "self", Href: "https://socket.dev/api/blog/feed.atom"},
+				{Href: "https://socket.dev/blog/some-post"},
+			},
+		}
+		got, err := entryLink(socketBaseURL, entry)
+		require.NoError(t, err)
+		assert.Equal(t, "https://socket.dev/blog/some-post", got)
+	})
+
+	t.Run("alternate link with empty href is skipped", func(t *testing.T) {
+		entry := socketFeedEntry{
+			Title: "T",
+			Links: []socketFeedLink{
+				{Rel: "alternate"},
+				{Href: "https://socket.dev/blog/some-post"},
+			},
+		}
+		got, err := entryLink(socketBaseURL, entry)
+		require.NoError(t, err)
+		assert.Equal(t, "https://socket.dev/blog/some-post", got)
+	})
+
+	t.Run("no usable link errors", func(t *testing.T) {
+		entry := socketFeedEntry{Title: "T"}
+		_, err := entryLink(socketBaseURL, entry)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "has no link")
+	})
+}
+
+func TestFetchArticleContent_ProseFallback(t *testing.T) {
+	pageHTML := `<!DOCTYPE html><html><body>
+		<div class="prose rich-text"><p>Prose fallback content.</p></div>
+	</body></html>`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, pageHTML)
+	}))
+	defer srv.Close()
+
+	content, err := (&SocketDevScraper{baseURL: srv.URL}).fetchArticleContent(srv.URL + "/blog/some-post")
+	require.NoError(t, err)
+	assert.Contains(t, content.html, "Prose fallback content.")
+	assert.Equal(t, "Prose fallback content.", content.cleaned)
+}
+
+func TestFetchArticleContent_NoContentErrors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "<!DOCTYPE html><html><body><div>No article here</div></body></html>")
+	}))
+	defer srv.Close()
+
+	_, err := (&SocketDevScraper{baseURL: srv.URL}).fetchArticleContent(srv.URL + "/blog/some-post")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no article content found at")
 }
 
 func TestSocketDevScraper_FetchArticles_ListingFetchError(t *testing.T) {
