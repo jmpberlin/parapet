@@ -34,6 +34,8 @@ func (s *BCScraper) FetchArticles(since time.Time) ([]domain.Article, error) {
 	}
 	articles, extractErrs := s.extractArticleList(since, doc)
 
+	// addArticleContent mutates the slice in place, but reassign so the
+	// result stays correct even if it ever grows the slice via append.
 	articles, contentErrs := s.addArticleContent(articles)
 	allErrs := append(extractErrs, contentErrs...)
 
@@ -57,7 +59,9 @@ func (s *BCScraper) extractArticleList(since time.Time, doc *goquery.Document) (
 		headline := headlineTag.Text()
 
 		href, exists := headlineTag.Attr("href")
-		if !exists || !strings.HasPrefix(href, "https") {
+		// SourceURL is stored, deduplicated on, and rendered as a link in
+		// the UI, so only same-origin article links are accepted.
+		if !exists || !strings.HasPrefix(href, "https://www.bleepingcomputer.com/") {
 			return
 		}
 
@@ -119,5 +123,5 @@ func (s *BCScraper) addArticleContent(articles []domain.Article) ([]domain.Artic
 		articles[i].ContentCleaned = content
 	}
 
-	return articles, nil
+	return articles, errs
 }
