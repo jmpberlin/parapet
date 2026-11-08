@@ -160,6 +160,32 @@ func TestMatchRepository_Save_VersionCheck(t *testing.T) {
 	}
 }
 
+func TestMatchRepository_LegacyRow_HasEmptyVersionCheck(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	// simulate a row written before the version_check column existed
+	_, err := testDB.Exec(`
+		INSERT INTO matches (id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, 'WARNING', NOW())
+	`, uuid.New().String(), vulnID, repoID, "pkg:npm/lodash@4.17.20", "lodash", "4.17.20")
+	if err != nil {
+		t.Fatalf("failed to seed legacy match: %s", err)
+	}
+
+	matches, err := repo.GetByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get matches: %s", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(matches))
+	}
+	if matches[0].VersionCheck != "" {
+		t.Errorf("expected empty VersionCheck for legacy row, got %q", matches[0].VersionCheck)
+	}
+}
+
 func TestMatchRepository_GetByID(t *testing.T) {
 	truncateMatches(t)
 	vulnID, repoID := seedMatchPrereqs(t)

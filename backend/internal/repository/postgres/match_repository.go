@@ -7,6 +7,9 @@ import (
 	"github.com/jmpberlin/nightwatch/backend/internal/domain"
 )
 
+// matchColumns is the column list shared by every match query.
+const matchColumns = "id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier, version_check"
+
 type MatchRepository struct {
 	db *sql.DB
 }
@@ -31,7 +34,7 @@ func (r *MatchRepository) Save(match domain.Match) error {
 
 func (r *MatchRepository) GetByRepositoryID(repoID string) ([]domain.Match, error) {
 	return r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier, version_check
+		SELECT `+matchColumns+`
 		FROM matches WHERE repository_id = $1
 	`, repoID)
 }
@@ -44,7 +47,7 @@ func (r *MatchRepository) GetByRepositoryIDPaginated(repoID string, page, limit 
 
 	offset := (page - 1) * limit
 	matches, err := r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier, version_check
+		SELECT `+matchColumns+`
 		FROM matches WHERE repository_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
@@ -58,7 +61,7 @@ func (r *MatchRepository) GetByRepositoryIDPaginated(repoID string, page, limit 
 
 func (r *MatchRepository) GetByID(id string) (*domain.Match, error) {
 	matches, err := r.queryMatches(`
-			SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier, version_check
+			SELECT `+matchColumns+`
 			FROM matches WHERE id = $1
 	`, id)
 	if err != nil {
@@ -83,14 +86,14 @@ func (r *MatchRepository) GetCountByRepositoryID(repoID string) (int, error) {
 
 func (r *MatchRepository) GetByStatus(status domain.MatchStatus) ([]domain.Match, error) {
 	return r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier, version_check
+		SELECT `+matchColumns+`
 		FROM matches WHERE status = $1
 	`, string(status))
 }
 
 func (r *MatchRepository) GetUnresolvedByRepositoryID(repoID string) ([]domain.Match, error) {
 	return r.queryMatches(`
-		SELECT id, vulnerability_id, repository_id, component_purl, matched_component, matched_version, status, resolved_at, created_at, confidence, matched_on, vuln_identifier, dep_identifier, version_check
+		SELECT `+matchColumns+`
 		FROM matches WHERE repository_id = $1 AND status != 'RESOLVED'
 	`, repoID)
 }
