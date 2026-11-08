@@ -6,6 +6,7 @@ type RepositoryDetail = components['schemas']['RepositoryDetail'];
 type CreateRepositoryRequest = components['schemas']['CreateRepositoryRequest'];
 type PaginatedMatches = components['schemas']['PaginatedMatches'];
 type PaginatedDependencies = components['schemas']['PaginatedDependencies'];
+type MatchDetail = components['schemas']['MatchDetail'];
 
 export function getRepositories(): Promise<RepositoryListItem[]> {
   return apiFetch('/repositories');
@@ -40,4 +41,8 @@ export function getRepositoryDependencies(
 ): Promise<PaginatedDependencies> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   return apiFetch(`/repositories/${id}/dependencies?${params}`);
+}
+
+export function getMatchByID(id: string): Promise<MatchDetail> {
+  return apiFetch(`/matches/${id}`);
 }

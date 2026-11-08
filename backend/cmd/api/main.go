@@ -166,6 +166,8 @@ func main() {
 
 	r.Get("/vulnerabilities", handler.GetVulnerabilitiesHandler(vulnRepo))
 
+	r.Get("/matches/{id}", handler.GetMatchDetailHandler(matchRepo, vulnRepo, articleRepo))
+
 	port := getPort()
 	slog.Info("starting http server", "port", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {

@@ -320,13 +320,42 @@
     grid-template-areas: 'status detail';
 
     @media (min-width: $tablet-min) {
-      grid-template-columns: auto 1fr auto;
-      grid-template-areas: 'status detail date';
+      grid-template-columns: auto 1fr auto auto;
+      grid-template-areas: 'status detail badges date';
     }
 
     &:last-child {
       border-bottom: none;
     }
+  }
+
+  &__match-link {
+    display: contents;
+    grid-area: link;
+    text-decoration: none;
+
+    &:hover .repos__match-name {
+      opacity: 0.6;
+    }
+  }
+
+  &__match-badges {
+    grid-area: badges;
+    display: flex;
+    gap: 0.3rem;
+  }
+
+  &__badge {
+    font-size: 0.6rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.45rem;
+    border-radius: 2px;
+    background: rgba(45, 113, 65, 0.08);
+    color: $secondary-color;
+    opacity: 0.7;
+    white-space: nowrap;
   }
 
   &__status {

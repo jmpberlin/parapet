@@ -134,6 +134,81 @@ func TestMatchRepository_Save_EvidenceFields(t *testing.T) {
 	}
 }
 
+func TestMatchRepository_Save_VersionCheck(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	m := newTestMatch(vulnID, repoID)
+	m.Confidence = "CONFIRMED"
+	m.MatchedOn = "normalized_name"
+	m.VersionCheck = "in_range"
+
+	if err := repo.Save(m); err != nil {
+		t.Fatalf("failed to save match: %s", err)
+	}
+
+	matches, err := repo.GetByRepositoryID(repoID)
+	if err != nil {
+		t.Fatalf("failed to get matches: %s", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected 1 match, got %d", len(matches))
+	}
+	if matches[0].VersionCheck != "in_range" {
+		t.Errorf("expected VersionCheck in_range, got %q", matches[0].VersionCheck)
+	}
+}
+
+func TestMatchRepository_GetByID(t *testing.T) {
+	truncateMatches(t)
+	vulnID, repoID := seedMatchPrereqs(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	m := newTestMatch(vulnID, repoID)
+	m.Confidence = "LOW"
+	m.MatchedOn = "word_token"
+	m.VulnIdentifier = "lodash"
+	m.DepIdentifier = "lodash"
+	m.VersionCheck = "out_of_range"
+	if err := repo.Save(m); err != nil {
+		t.Fatalf("failed to save match: %s", err)
+	}
+
+	got, err := repo.GetByID(m.ID)
+	if err != nil {
+		t.Fatalf("failed to get match by ID: %s", err)
+	}
+	if got == nil {
+		t.Fatal("expected match, got nil")
+	}
+	if got.ID != m.ID {
+		t.Errorf("expected ID %s, got %s", m.ID, got.ID)
+	}
+	if got.Confidence != "LOW" {
+		t.Errorf("expected Confidence LOW, got %q", got.Confidence)
+	}
+	if got.MatchedOn != "word_token" {
+		t.Errorf("expected MatchedOn word_token, got %q", got.MatchedOn)
+	}
+	if got.VersionCheck != "out_of_range" {
+		t.Errorf("expected VersionCheck out_of_range, got %q", got.VersionCheck)
+	}
+}
+
+func TestMatchRepository_GetByID_NotFound(t *testing.T) {
+	truncateMatches(t)
+	repo := postgres.NewMatchRepository(testDB)
+
+	got, err := repo.GetByID("does-not-exist")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if got != nil {
+		t.Errorf("expected nil for missing match, got %+v", got)
+	}
+}
+
 func TestMatchRepository_GetByRepositoryID_IsolatedByRepo(t *testing.T) {
 	truncateMatches(t)
 	vulnID1, repoID1 := seedMatchPrereqs(t)

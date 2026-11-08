@@ -50,6 +50,11 @@ type matchResponse struct {
 	Status           string     `json:"status"`
 	ResolvedAt       *time.Time `json:"resolved_at"`
 	CreatedAt        time.Time  `json:"created_at"`
+	Confidence       string     `json:"confidence,omitempty"`
+	MatchedOn        string     `json:"matched_on,omitempty"`
+	VulnIdentifier   string     `json:"vuln_identifier,omitempty"`
+	DepIdentifier    string     `json:"dep_identifier,omitempty"`
+	VersionCheck     string     `json:"version_check,omitempty"`
 }
 
 type repoListItem struct {
@@ -114,6 +119,11 @@ func toMatchResponse(m domain.Match) matchResponse {
 		Status:           string(m.Status),
 		ResolvedAt:       m.ResolvedAt,
 		CreatedAt:        m.CreatedAt,
+		Confidence:       m.Confidence,
+		MatchedOn:        m.MatchedOn,
+		VulnIdentifier:   m.VulnIdentifier,
+		DepIdentifier:    m.DepIdentifier,
+		VersionCheck:     m.VersionCheck,
 	}
 }
 

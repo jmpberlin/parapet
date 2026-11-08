@@ -34,12 +34,19 @@ const (
 	ConfidenceNone      MatchConfidence = "NONE"
 )
 
+const (
+	VersionCheckInRange    = "in_range"
+	VersionCheckOutOfRange = "out_of_range"
+	VersionCheckUnknown    = "unknown"
+)
+
 type tierResult struct {
 	matched        bool
 	confidence     MatchConfidence
 	matchedOn      string
 	vulnIdentifier string
 	depIdentifier  string
+	versionCheck   string
 }
 
 // matchAffected checks whether a single affected technology entry from a
@@ -199,10 +206,13 @@ const (
 func applyVersionCheck(result tierResult, vulnVersionRange, depVersion string) tierResult {
 	switch checkVersionRange(vulnVersionRange, depVersion) {
 	case versionInRange:
+		result.versionCheck = VersionCheckInRange
 		result.confidence = ConfidenceConfirmed
 	case versionOutOfRange:
+		result.versionCheck = VersionCheckOutOfRange
 		result.confidence = ConfidenceLow
 	default:
+		result.versionCheck = VersionCheckUnknown
 		if result.confidence == ConfidenceHigh || result.confidence == ConfidenceMedium {
 			result.confidence = ConfidenceWarning
 		}
@@ -234,6 +244,7 @@ func buildMatchFromResult(
 		MatchedOn:        result.matchedOn,
 		VulnIdentifier:   result.vulnIdentifier,
 		DepIdentifier:    result.depIdentifier,
+		VersionCheck:     result.versionCheck,
 	}
 }
 
