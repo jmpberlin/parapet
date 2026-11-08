@@ -123,5 +123,5 @@ func (s *BCScraper) addArticleContent(articles []domain.Article) ([]domain.Artic
 		articles[i].ContentCleaned = content
 	}
 
-	return articles, nil
+	return articles, errs
 }
