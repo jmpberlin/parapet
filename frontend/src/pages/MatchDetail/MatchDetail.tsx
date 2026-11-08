@@ -4,11 +4,14 @@ import DashboardCard from '../../components/DashboardCard/DashboardCard';
 import './MatchDetail.scss';
 
 function fmt(iso: string): string {
+  const date = new Date(iso);
+  // Go's zero time (missing vulnerability) would otherwise render as "1 January 1"
+  if (date.getUTCFullYear() === 1) return '—';
   return new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(new Date(iso));
+  }).format(date);
 }
 
 const TIER_LABELS: Record<string, string> = {

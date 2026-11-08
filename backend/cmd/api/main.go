@@ -176,16 +176,15 @@ func main() {
 	}
 }
 
-func corsAllowedOrigins() []string {
-	value := os.Getenv("CORS_ALLOWED_ORIGINS")
-	var origins []string
-	for _, origin := range strings.Split(value, ",") {
+func corsAllowedOrigins() map[string]bool {
+	origins := make(map[string]bool)
+	for _, origin := range strings.Split(os.Getenv("CORS_ALLOWED_ORIGINS"), ",") {
 		if origin = strings.TrimSpace(origin); origin != "" {
-			origins = append(origins, origin)
+			origins[origin] = true
 		}
 	}
 	if len(origins) == 0 {
-		origins = []string{"https://parapet.digital"}
+		origins["https://parapet.digital"] = true
 	}
 	return origins
 }
@@ -197,12 +196,14 @@ func healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"status": "ok"}`)
 }
 
+// Only one origin may be sent per response; echo the request's Origin when
+// it is allowed instead of listing all configured origins.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for _, origin := range allowedOrigins {
-			w.Header().Add("Access-Control-Allow-Origin", origin)
+		if origin := r.Header.Get("Origin"); origin != "" && allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
-		w.Header().Set("Vary", "Origin")
+		w.Header().Add("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
